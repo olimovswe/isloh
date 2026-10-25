@@ -1,0 +1,14 @@
+{
+  "appId": "uz.isloh.app",
+  "appName": "Isloh",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0e1320"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_isloh",
+      "iconColor": "#1a7f6b"
+    }
+  }
+}
