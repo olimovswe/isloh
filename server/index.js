@@ -7,9 +7,10 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-// .env faylini o'qish
+// .env faylini o'qish (ISLOH_ENV bilan boshqa joydagi faylni ko'rsatish mumkin)
+const ENV_FILE = process.env.ISLOH_ENV || path.join(ROOT, '.env');
 try {
-  for (const line of fs.readFileSync(path.join(ROOT, '.env'), 'utf8').split('\n')) {
+  for (const line of fs.readFileSync(ENV_FILE, 'utf8').split('\n')) {
     const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
     if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
   }
@@ -23,7 +24,7 @@ const PUBLIC_URL = process.env.PUBLIC_URL || `http://${HOST}:${PORT}`;
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const BOT_USERNAME = process.env.BOT_USERNAME || 'islohuzbot';
 const DEV_LOGIN = process.env.DEV_LOGIN === '1';
-const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const log = (...a) => console.log(new Date(Date.now() + 5 * 3600e3).toISOString().slice(11, 19), ...a);
 
 const T = require('./time');
 const Prayer = require('./prayer');
