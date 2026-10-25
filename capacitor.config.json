@@ -1,7 +1,7 @@
 {
   "appId": "uz.isloh.app",
   "appName": "Isloh",
-  "webDir": "www",
+  "webDir": "web",
   "android": {
     "backgroundColor": "#0e1320"
   },

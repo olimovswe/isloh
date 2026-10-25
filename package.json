@@ -1,109 +1,23 @@
 {
   "name": "isloh",
-  "productName": "Isloh",
-  "version": "1.0.1",
-  "description": "Shaxsiy reja, maqsad va namoz vaqtlari — internetsiz ishlaydi",
-  "author": {
-    "name": "Muslimbek Olimov",
-    "email": "olimovswe@gmail.com"
-  },
+  "version": "2.0.0",
+  "description": "Isloh — maqsad sari ongli hayot: namoz, kun rejasi, tahlil va ilm",
+  "author": { "name": "Muslimbek Olimov", "email": "olimovswe@gmail.com" },
   "homepage": "https://github.com/olimovswe/isloh",
   "repository": "github:olimovswe/isloh",
   "private": true,
-  "main": "electron/main.js",
-  "desktopName": "isloh.desktop",
+  "engines": { "node": ">=22.13" },
   "scripts": {
-    "start": "electron .",
-    "web": "python3 -m http.server 8080 --directory www",
-    "dist:linux": "electron-builder --linux --publish never",
-    "dist:win": "electron-builder --win --publish never",
-    "dist:mac": "electron-builder --mac --publish never",
-    "android:sync": "cap sync android",
-    "android:open": "cap open android"
-  },
-  "build": {
-    "appId": "uz.isloh.app",
-    "productName": "Isloh",
-    "executableName": "isloh",
-    "copyright": "© 2026 Muslimbek Olimov",
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "files": [
-      "electron/**",
-      "www/**",
-      "package.json",
-      "!node_modules/**"
-    ],
-    "afterPack": "build/after-pack.js",
-    "linux": {
-      "target": [
-        "deb",
-        "AppImage"
-      ],
-      "category": "Office",
-      "icon": "build/icon.png",
-      "synopsis": "Reja, maqsad va namoz vaqtlari",
-      "maintainer": "Muslimbek Olimov <olimovswe@gmail.com>",
-      "syncDesktopName": true
-    },
-    "deb": {
-      "artifactName": "Isloh-Linux.deb"
-    },
-    "appImage": {
-      "artifactName": "Isloh-Linux.AppImage"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "build/icon.png"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "runAfterFinish": true,
-      "shortcutName": "Isloh",
-      "artifactName": "Isloh-Windows-Setup.exe"
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
-      "category": "public.app-category.productivity",
-      "icon": "build/icon.png",
-      "identity": null,
-      "hardenedRuntime": false
-    },
-    "dmg": {
-      "artifactName": "Isloh-macOS-${arch}.dmg",
-      "title": "Isloh"
-    }
+    "start": "node server/index.js",
+    "dev": "DEV_LOGIN=1 node --watch server/index.js",
+    "test": "node server/selftest.js"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.5.3",
-    "electron": "^45.0.0",
-    "electron-builder": "^26.18.0"
+    "@capacitor/cli": "^8.5.3"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/core": "^8.5.3",
-    "@capacitor/filesystem": "^8.1.5",
-    "@capacitor/local-notifications": "^8.3.1",
-    "@capacitor/share": "^8.0.3"
+    "@capacitor/local-notifications": "^8.3.1"
   }
 }
