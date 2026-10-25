@@ -64,9 +64,30 @@ function create(db, bus = { emit() {} }) {
     const row = code.length === 6 ? db.get('SELECT * FROM login_codes WHERE code=? AND expires_at>?', code, now()) : null;
     if (!row) { f.n++; fails.set(ip, f); throw new ApiError(400, "Kod noto'g'ri yoki muddati o'tgan. Botdan yangi kod oling."); }
     db.run('DELETE FROM login_codes WHERE code=?', code);
+    return createSession(row.user_id);
+  }
+  function createSession(userId) {
     const token = crypto.randomBytes(32).toString('hex');
-    db.run('INSERT INTO sessions (token_hash,user_id,created_at,last_seen) VALUES (?,?,?,?)', sha(token), row.user_id, now(), now());
-    return { token, user: publicUser(userById(row.user_id)) };
+    db.run('INSERT INTO sessions (token_hash,user_id,created_at,last_seen) VALUES (?,?,?,?)', sha(token), userId, now(), now());
+    return { token, user: publicUser(userById(userId)) };
+  }
+  /* Telegram ichida ochilgan ilova (Mini App): Telegram imzolagan ma'lumot orqali kodsiz kirish */
+  function authTelegram(initData, botToken) {
+    if (!botToken) throw new ApiError(400, 'Bot ulanmagan');
+    const p = new URLSearchParams(String(initData || ''));
+    const hash = p.get('hash');
+    if (!hash) throw new ApiError(400, "Telegram ma'lumoti yo'q");
+    p.delete('hash');
+    const check = [...p.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join('\n');
+    const secret = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+    const calc = crypto.createHmac('sha256', secret).update(check).digest('hex');
+    if (calc.length !== hash.length || !crypto.timingSafeEqual(Buffer.from(calc), Buffer.from(hash))) throw new ApiError(401, "Telegram imzosi noto'g'ri");
+    if (Date.now() / 1000 - (+p.get('auth_date') || 0) > 86400) throw new ApiError(401, "Telegram ma'lumoti eskirgan — ilovani botdan qayta oching");
+    let tgUser;
+    try { tgUser = JSON.parse(p.get('user') || '{}'); } catch (e) { tgUser = {}; }
+    const u = tgUser.id && userByTg(tgUser.id);
+    if (!u) throw new ApiError(404, "Avval botda /start bosib, kontaktingizni yuboring");
+    return createSession(u.id);
   }
   function auth(token) {
     if (!token) return null;
@@ -75,6 +96,7 @@ function create(db, bus = { emit() {} }) {
     if (now() - (s.last_seen || 0) > 3600e3) db.run('UPDATE sessions SET last_seen=? WHERE token_hash=?', now(), s.token_hash);
     return userById(s.user_id);
   }
+  const registeredChats = () => db.all('SELECT tg_id FROM users WHERE tg_id > 0').map(r => r.tg_id);
   const logout = token => db.run('DELETE FROM sessions WHERE token_hash=?', sha(token || ''));
 
   function updateMe(u, b) {
@@ -379,7 +401,7 @@ function create(db, bus = { emit() {} }) {
     return { date: ds, user: publicUser(u), prayers: prayersOf(u, ds), times, windows: wins, next_bomdod: tw.bomdod[0], current, next, day: dayRow(u, ds) };
   }
 
-  return { ApiError, CATS, userById, userByTg, publicUser, registerContact, newCode, verifyCode, auth, logout, updateMe,
+  return { ApiError, CATS, userById, userByTg, publicUser, registerContact, newCode, verifyCode, createSession, authTelegram, registeredChats, auth, logout, updateMe,
     activeDate, prayerSlots, planGet, taskCreate, taskUpdate, taskDelete, taskStart, taskFinish, taskRate, getTask, taskRow, tasksOf,
     planReady, templatesList, templateUpdate, templateDelete, prayersOf, prayerMark, prayerAutoQazo, wake, sleep, dayRow, setDay,
     materialize, home, span };

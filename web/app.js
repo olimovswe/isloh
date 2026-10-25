@@ -788,11 +788,31 @@ function startEvents() {
   ES.onerror = () => { ES.close(); ES = null; setTimeout(startEvents, 5000); };
 }
 
+/* Telegram Mini App bilan aloqa (rasmiy skriptsiz, xom hodisalar orqali) */
+function tgPost(ev, data = '') {
+  try {
+    if (window.TelegramWebviewProxy) window.TelegramWebviewProxy.postEvent(ev, data);
+    else if (window.external && 'notify' in window.external) window.external.notify(JSON.stringify({ eventType: ev, eventData: data }));
+    else if (window.parent !== window) window.parent.postMessage(JSON.stringify({ eventType: ev, eventData: data }), '*');
+  } catch (e) { /* Telegram'dan tashqarida */ }
+}
+
 /* ================================================================ ishga tushirish */
 (async function boot() {
   applyTheme();
   requestAnimationFrame(loop);
   try { S.config = await api('GET', '/api/config'); } catch (e) { $('#gate').innerHTML = '<div class="gate"><div class="card glass"><h1>Server bilan aloqa yo\'q</h1><p>Isloh serveri ishga tushirilganini tekshiring.</p></div></div>'; return; }
+  // Botdagi tugmadan ochilganda: "?p=reja%3Fd%3D..." — kerakli bo'lim; Telegram ichida "#tgWebAppData=..." — kodsiz kirish
+  const tgData = new URLSearchParams(location.hash.slice(1)).get('tgWebAppData');
+  const page = new URLSearchParams(location.search).get('p');
+  if (page || tgData) history.replaceState(null, '', '/#/' + (page || 'home'));
+  if (tgData) {
+    tgPost('web_app_ready'); tgPost('web_app_expand');
+    if (!S.token) {
+      try { const r = await api('POST', '/api/auth/telegram', { init_data: tgData }); S.token = r.token; localStorage.setItem('isloh_token', r.token); localStorage.setItem('isloh_intro', '1'); }
+      catch (e) { toast(e.message, true); }
+    }
+  }
   if (S.token) { try { S.me = await api('GET', '/api/me'); startEvents(); } catch (e) { S.token = ''; } }
   applyTheme();
   render();

@@ -134,27 +134,42 @@ Misol: 05:00–06:00 dagi ish 05:20 da boshlandi va 06:05 da tugadi, baho 4. Bun
   - **qorong'i yoki yorug' mavzu**;
   - ilova bildirishnomalari va chiqish.
 
-## Ishga tushirish (mahalliy)
+## Ishga tushirish
 
-Talab: **Node.js 22.13+** (boshqa hech narsa kerak emas).
+Talab: **Node.js 22.13+** (boshqa kutubxona kerak emas). Linux'da doimiy xizmat sifatida o'rnatish:
 
 ```bash
-cp .env.example .env      # BOT_TOKEN ni @BotFather'dan olib yozing
-npm start                 # http://127.0.0.1:8080
+./scripts/install-local.sh          # server + kompyuter yonganda avtomatik ishga tushish + ilovalar menyusida ikonka
+~/.local/share/isloh/set-token.sh   # @BotFather bergan tokenni kiritish (ekranda ko'rinmaydi, Telegram orqali tekshiriladi)
 ```
 
-- **Botsiz sinash:** `.env` da `DEV_LOGIN=1` qiling. Kirish sahifasida «Sinov rejimi: botsiz kirish» tugmasi paydo bo'ladi.
-- **Avtomatik sinov:** `npm test`. U butun bir kunni sun'iy vaqt bilan o'tkazadi va 33 ta tekshiruvdan iborat.
-- **Ma'lumotlar:** `data/isloh.db` (SQLite).
-- **Ilova sifatida o'rnatish:** Chrome yoki Edge'da manzil satridagi **«O'rnatish»** belgisini bosing. Telefonda **«Bosh ekranga qo'shish»**.
+- **Sozlamalar:** `~/.config/isloh/.env`
+- **Ma'lumotlar:** `~/.local/share/isloh/data/isloh.db`
+- **Holat va jurnal:** `systemctl --user status isloh` va `journalctl --user -u isloh -f`
 
-### Telegram tugmalari haqida
+### Telefonda ishlatish
 
-Botdagi «Ilovani ochish» tugmalari uchun Telegram faqat **https** manzilni qabul qiladi. Mahalliy sinovda bu tugmalar chiqmaydi, qolgan hamma narsa ishlaydi. Server domenga qo'yilganda `.env` dagi `PUBLIC_URL=https://...` to'ldiriladi.
+O'rnatish skripti kompyuterda `cloudflared` bor-yo'qligini tekshiradi. Bor bo'lsa, **Cloudflare tunnel** xizmatini ham yoqadi. Tunnel serverga internetdan https manzil beradi (`https://....trycloudflare.com`), shundan keyin:
+
+- Telegram'da **@islohuzbot** chatining chap pastidagi **«Isloh»** tugmasi ilovani Telegram ichida ochadi. Kirish **kodsiz va avtomatik** (Telegram imzosi tekshiriladi).
+- Bot xabarlaridagi «Ilovani ochish» tugmalari kerakli bo'limni ochadi: reja, tarix va boshqalar.
+- Manzilni telefon brauzerida ochib, **«Bosh ekranga qo'shish»** orqali ilova sifatida o'rnatish mumkin.
+
+Bepul tunnel manzili kompyuter qayta yonganda o'zgaradi. Server buni o'zi sezadi: bot menyusini yangilaydi va sizga yangi havolani yuboradi. Doimiy manzil uchun o'z domeningizni ulang va `.env` dagi `PUBLIC_URL` ni to'ldiring.
+
+### Ishlab chiqish
+
+```bash
+cp .env.example .env && npm run dev     # DEV_LOGIN=1: «Sinov rejimi: botsiz kirish»
+npm test                                # butun bir kun simulyatsiyasi — 35 ta tekshiruv
+```
+
+Har bir push'da GitHub Actions (`.github/workflows/ci.yml`) Node 22 va 24 da quyidagilarni tekshiradi: sintaksis, kun simulyatsiyasi, server, API va PDF.
 
 ## Keyingi bosqichlar
 
-- [ ] Serverni internetga qo'yish (domen + https), bot tugmalari ilovaga to'g'ridan-to'g'ri ochiladi.
+- [x] Telegram ichida ochiladigan ilova (Mini App) va kodsiz kirish.
+- [ ] Doimiy server va domen (hozir — kompyuterdagi xizmat va bepul tunnel).
 - [ ] Play Market uchun Android ilova (`android/` — Capacitor qobig'i tayyor).
 - [ ] AI yordamchi: kun tahlili bo'yicha maslahat, podkastlarni tavsiya qilish.
 - [ ] Maqsadlar bo'limi: katta maqsadni kunlik ishlarga avtomatik bo'lish.
@@ -163,6 +178,7 @@ Botdagi «Ilovani ochish» tugmalari uchun Telegram faqat **https** manzilni qab
 
 ```
 server/        Node.js server (API, bot, jadval, tahlil, PDF, podkastlar)
+scripts/       o'rnatish, bot tokeni va tunnel skriptlari
 web/           Veb-ilova (PWA): index.html, app.js, style.css, sw.js
 android/       Android qobig'i (keyingi bosqich uchun)
 .env.example   Sozlamalar namunasi

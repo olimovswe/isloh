@@ -28,10 +28,20 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
     if (!j.ok) throw new Error(`sendDocument: ${j.description}`);
     return j.result;
   }
-  const httpsApp = () => publicUrl && /^https:\/\//.test(publicUrl) && !/localhost|127\.0\.0\.1/.test(publicUrl);
-  /* Ilovani ochish tugmasi — faqat ilova ochiq https manzilda bo'lsa (Telegram talabi) */
+  const base = () => String((typeof publicUrl === 'function' ? publicUrl() : publicUrl) || '').replace(/\/$/, '');
+  const httpsApp = () => /^https:\/\//.test(base()) && !/localhost|127\.0\.0\.1/.test(base());
+  /* Ilova manzili: "/#/reja?d=..." → "https://.../?p=reja%3Fd%3D..." (Telegram o'z ma'lumotini # dan keyin qo'shadi) */
+  const appUrl = (path = '/') => `${base()}/?p=${encodeURIComponent(path.replace(/^\/?#?\/?/, '') || 'home')}`;
+  /* Ilovani ochish tugmasi — Telegram ichida ochiladi (Mini App). Faqat https manzilda ishlaydi (Telegram talabi). */
   function appRow(text, path = '/') {
-    return httpsApp() ? [{ text, url: publicUrl.replace(/\/$/, '') + path }] : null;
+    return httpsApp() ? [{ text, web_app: { url: appUrl(path) } }] : null;
+  }
+  /* Botning pastki chapdagi menyu tugmasi — ilovani ochadi */
+  async function setMenu(chatIds = []) {
+    const menu_button = httpsApp() ? { type: 'web_app', text: 'Isloh', web_app: { url: appUrl('home') } } : { type: 'default' };
+    await call('setChatMenuButton', { menu_button });
+    // har bir chatga alohida ham qo'yamiz — umumiy sozlama Telegram'da kechikib yangilanadi
+    for (const id of chatIds) await call('setChatMenuButton', { chat_id: id, menu_button }).catch(() => {});
   }
   const kb = rows => ({ inline_keyboard: rows.filter(Boolean) });
 
@@ -70,6 +80,7 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
     }
     const u = core.registerContact({ tg_id: msg.from.id, phone: c.phone_number, username: msg.from.username, first_name: msg.from.first_name, last_name: msg.from.last_name });
     await call('sendMessage', { chat_id: msg.chat.id, parse_mode: 'HTML', text: `✅ Raqamingiz tasdiqlandi: <b>${esc(u.phone)}</b>`, reply_markup: { remove_keyboard: true } });
+    setMenu([msg.chat.id]).catch(() => {});
     return codeMessage(msg.chat.id, u);
   }
 
@@ -171,11 +182,19 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
 
   async function poll() {
     running = true;
-    try {
-      await call('setMyCommands', { commands: [{ command: 'bugun', description: 'Bugungi reja' }, { command: 'hisobot', description: 'Bugungi tahlil (PDF)' }, { command: 'kod', description: 'Ilovaga kirish kodi' }] });
-      const me = await call('getMe', {});
-      log(`Telegram bot ulandi: @${me.username}`);
-    } catch (e) { log('bot ulanmadi:', e.message); }
+    // Internet hali tayyor bo'lmasa (kompyuter endi yonganda) — ulanguncha qayta urinadi
+    for (let i = 0; running; i++) {
+      try {
+        await call('setMyCommands', { commands: [{ command: 'bugun', description: 'Bugungi reja' }, { command: 'hisobot', description: 'Bugungi tahlil (PDF)' }, { command: 'kod', description: 'Ilovaga kirish kodi' }] });
+        await setMenu(core.registeredChats ? core.registeredChats() : []).catch(() => {});
+        const me = await call('getMe', {});
+        log(`Telegram bot ulandi: @${me.username}`);
+        break;
+      } catch (e) {
+        if (i % 10 === 0) log('bot ulanmadi, qayta urinilmoqda:', e.message);
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    }
     while (running) {
       try {
         const ups = await call('getUpdates', { offset, timeout: 25, allowed_updates: ['message', 'callback_query'] });
@@ -187,7 +206,7 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
     }
   }
 
-  return { start: () => { if (!running) poll(); }, stop: () => { running = false; }, handle, send, sendDailyPdf, appRow, kb };
+  return { start: () => { if (!running) poll(); }, stop: () => { running = false; }, handle, send, sendDailyPdf, appRow, appUrl, setMenu, kb };
 }
 
 module.exports = { create, esc };
