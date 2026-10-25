@@ -95,10 +95,10 @@ const isAndroid = () => S.platform === 'android';
 /* Faylni saqlash: kompyuterda — "Saqlash" oynasi, telefonda — ulashish oynasi (Telegram, Drive, Fayllar…). */
 async function saveFile(name, text) {
   if (native) return native.saveFile(name, text);
-  const C = window.Capacitor && window.Capacitor.Plugins;
-  if (isAndroid() && C && C.Filesystem && C.Share) {
-    const r = await C.Filesystem.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
-    await C.Share.share({ title: name, files: [r.uri] });
+  const FS = isAndroid() && capPlugin('Filesystem'), SH = isAndroid() && capPlugin('Share');
+  if (FS && SH) {
+    const r = await FS.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+    await SH.share({ title: name, files: [r.uri] });
     return 'shared';
   }
   const link = document.createElement('a');

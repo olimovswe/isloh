@@ -32,6 +32,15 @@
     });
   }
 
+  /* Capacitor (Android) plaginlari: bundlersiz ishlatilgani uchun registerPlugin orqali olinadi. */
+  const plugins = {};
+  root.capPlugin = name => {
+    const C = root.Capacitor;
+    if (!C || !(C.isNativePlatform && C.isNativePlatform())) return null;
+    if (!plugins[name]) plugins[name] = (C.Plugins && C.Plugins[name]) || (C.registerPlugin ? C.registerPlugin(name) : null);
+    return plugins[name];
+  };
+
   let wallUrl = null;
   const Store = {
     isNative: !!native,

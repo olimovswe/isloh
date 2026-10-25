@@ -710,7 +710,7 @@
     sent: new Set(),
     started: false,
     get android() { return Store.platform === 'android'; },
-    plugin() { return root.Capacitor && root.Capacitor.Plugins && root.Capacitor.Plugins.LocalNotifications; },
+    plugin() { return root.capPlugin && root.capPlugin('LocalNotifications'); },
     async start() {
       if (this.started) return;
       this.started = true;
