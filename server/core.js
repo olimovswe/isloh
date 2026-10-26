@@ -10,7 +10,8 @@ const DEFAULT_TEMPLATES = [
   { title: 'Nonushta', start: '07:00', end: '07:30', category: 'ovqat', kind: 'meal' },
   { title: 'Kechki ovqat', start: '19:30', end: '20:00', category: 'ovqat', kind: 'meal' },
 ];
-const str = (v, n) => String(v ?? '').trim().slice(0, n);
+const clean = v => String(v ?? '').replace(/[\p{Cf}\p{Cc}\u3164\u115F\u1160\uFFA0\u2800]/gu, '').replace(/\s+/g, ' ').trim();
+const str = (v, n) => clean(v).slice(0, n);
 const sha = s => crypto.createHash('sha256').update(s).digest('hex');
 
 function create(db, bus = { emit() {} }) {
@@ -32,13 +33,13 @@ function create(db, bus = { emit() {} }) {
   function registerContact(c) {
     const phone = normPhone(c.phone);
     if (!phone) throw new ApiError(400, "Telefon raqam topilmadi");
-    const name = [c.first_name, c.last_name].filter(Boolean).join(' ').trim();
+    const name = clean([c.first_name, c.last_name].filter(Boolean).join(' '));
     let u = userByTg(c.tg_id) || db.get('SELECT * FROM users WHERE phone=?', phone);
     if (u) {
       db.run('UPDATE users SET tg_id=?, phone=?, username=?, tg_name=? WHERE id=?', c.tg_id, phone, c.username || '', name, u.id);
     } else {
       const r = db.run('INSERT INTO users (tg_id, phone, username, tg_name, name, created_at) VALUES (?,?,?,?,?,?)',
-        c.tg_id, phone, c.username || '', name, c.first_name || name, now());
+        c.tg_id, phone, c.username || '', name, clean(c.first_name) || name || 'Foydalanuvchi', now());
       for (const t of DEFAULT_TEMPLATES) {
         db.run('INSERT INTO templates (user_id,title,start,end,category,kind,days,active,created_at) VALUES (?,?,?,?,?,?,127,1,?)',
           r.lastInsertRowid, t.title, t.start, t.end, t.category, t.kind, now());

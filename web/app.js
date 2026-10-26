@@ -64,6 +64,10 @@ const P = {
   mosque: '<path d="M12 3c2 2 5 3 5 7H7c0-4 3-5 5-7zM5 21V12h14v9M9 21v-4a3 3 0 0 1 6 0v4M3 21h18"/>',
   target: '<circle cx="12" cy="12" r="1"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="9"/>',
   chart: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>', mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/>',
+  dawn: '<path d="M3 19h18M7 19a5 5 0 0 1 10 0"/><path d="M12 4v6m-3-3 3-3 3 3"/>',
+  sunrise: '<path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 8V6M5 12l1.4 1.4M19 12l-1.4 1.4M2 16h1.5M20.5 16H22"/>',
+  sunset: '<path d="M3 19h18M7 19a5 5 0 0 1 10 0"/><path d="M12 4v6m-3-3 3 3 3-3"/>',
+  cloudSun: '<path d="M12 3v1.5M5.6 5.6l1 1M18.4 5.6l-1 1M3 12h1.5"/><path d="M8.2 12.5a4 4 0 0 1 7.3-2.6"/><path d="M8 20h9a3.5 3.5 0 0 0 0-7h-.3A5 5 0 0 0 7 14.6 2.8 2.8 0 0 0 8 20z"/>',
   repeat: '<path d="M4 12V9a3 3 0 0 1 3-3h13l-3-3m3 3-3 3M20 12v3a3 3 0 0 1-3 3H4l3 3m-3-3 3-3"/>',
 };
 const ic = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="${cls}">${P[n]}</svg>`;
@@ -91,7 +95,7 @@ function modal(html, { wide = false, onClose } = {}) {
   document.body.appendChild(bg);
   let closed = false;
   const onKey = e => { if (e.key === 'Escape') close(); };
-  function close() { if (closed) return; closed = true; bg.remove(); document.removeEventListener('keydown', onKey); onClose && onClose(); }
+  function close() { if (closed) return; closed = true; bg.classList.add('closing'); setTimeout(() => bg.remove(), 190); document.removeEventListener('keydown', onKey); onClose && onClose(); }
   document.addEventListener('keydown', onKey);
   bg.addEventListener('mousedown', e => { if (e.target === bg) close(); });
   setTimeout(() => { const f = $('[autofocus]', bg); if (f) f.focus(); }, 40);
@@ -119,9 +123,18 @@ async function render(keep = false) {
   const v = $('#view');
   if (!S.token || !S.me || !S.me.onboarded) return gate();
   $('#gate').innerHTML = '';
-  $('#dock').classList.remove('hidden');
+  const dock = $('#dock');
+  dock.classList.remove('hidden');
   const r = route();
-  $('#dock').innerHTML = NAV.map(([k, i, l]) => `<a href="#/${k}" class="${k === r ? 'on' : ''}" data-label="${l}" aria-label="${l}">${ic(i)}</a>`).join('');
+  if (!dock.dataset.ready) {
+    dock.innerHTML = '<span class="ind"></span>' + NAV.map(([k, i, l]) => `<a href="#/${k}" data-k="${k}" aria-label="${l}">${ic(i)}<span>${l}</span></a>`).join('');
+    dock.dataset.ready = '1';
+  }
+  $$('a', dock).forEach((a, n) => {
+    a.classList.toggle('on', a.dataset.k === r);
+    if (a.dataset.k === r) $('.ind', dock).style.transform = `translateY(${a.offsetTop - 10}px)`;
+  });
+  v.classList.toggle('still', keep);
   const top = keep ? v.scrollTop : 0;
   frameFns = []; tickFns = [];
   for (const k of ['onclick', 'onchange', 'oninput', 'onkeydown', 'onsubmit']) v[k] = null;
@@ -247,65 +260,90 @@ VIEWS.home = async (v, alive) => {
   const H = await api('GET', '/api/home');
   if (!alive()) return;
   const seq = [['bomdod', H.times.bomdod], ['quyosh', H.times.quyosh], ['peshin', H.times.peshin], ['asr', H.times.asr], ['shom', H.times.shom], ['xufton', H.times.xufton], ['ertaga', H.next_bomdod]];
+  const ICON = { bomdod: 'dawn', quyosh: 'sunrise', peshin: 'sun', asr: 'cloudSun', shom: 'sunset', xufton: 'moon', ertaga: 'dawn' };
+  const END = { bomdod: H.times.quyosh, peshin: H.times.asr, asr: H.times.shom, shom: H.times.xufton, xufton: H.next_bomdod };
   const label = k => (k === 'ertaga' ? 'Bomdod' : PN[k]);
+  const sub = { quyosh: 'Bomdod vaqti tugashi', ertaga: 'ertaga' };
   const cur = H.current, nxt = H.next;
+  const mark = k => (H.prayers[k] === 'vaqtida' ? `<span style="color:var(--green)">${ic('check')}</span>` : H.prayers[k] === 'qazo' ? `<span style="color:var(--red)">${ic('x')}</span>` : '');
+  const appIc = (name, bg) => `<div class="app" style="background:${bg}">${ic(name)}</div>`;
   v.innerHTML = `<div class="home">
     <div class="wheel glass" id="wheel">${seq.map(([k, t], i) => `<div class="pr ${k === 'quyosh' || k === 'ertaga' ? 'minor' : ''}" data-i="${i}">
-      <span class="n">${label(k)}${k === 'ertaga' ? ' <span class="faint small">ertaga</span>' : ''}</span><span class="t num">${hhmm(t)}</span>
-      <span class="s">${H.prayers[k] === 'vaqtida' ? `<span style="color:var(--green)">${ic('check').replace('<svg', '<svg width="16" height="16"')}</span>` : H.prayers[k] === 'qazo' ? `<span style="color:var(--red)">${ic('x').replace('<svg', '<svg width="16" height="16"')}</span>` : ''}</span>
-    </div><div class="x" data-x="${i}" style="padding:0 14px 6px"></div>`).join('')}</div>
+      <span class="ic">${ic(ICON[k])}</span>
+      <span class="n">${label(k)}${sub[k] ? `<small>${sub[k]}</small>` : ''}</span><span class="t num">${hhmm(t)}</span><span class="s">${mark(k)}</span>
+    </div><div class="x" data-x="${i}"></div>`).join('')}</div>
     <div class="clockbox">
       <div class="date" id="h-date"></div>
-      <div class="clock num" id="h-clock">00:00:00</div>
+      <div class="hij" id="h-hij"></div>
+      <div class="clock num" id="h-clock">${'00:00:00'.split('').map(c => (c === ':' ? '<span class="col">:</span>' : '<span class="dg">0</span>')).join('')}</div>
       <div class="nano num" id="h-nano"></div>
-      ${cur ? `<div class="nowcard glass"><span class="dot" style="background:${CATC[cur.category] || '#888'}"></span>
+      ${cur ? `<div class="nowcard glass">${appIc(cur.status === 'active' ? 'play' : 'target', CATC[cur.category] || '#888')}
           <div class="grow"><div class="faint small">${cur.status === 'active' ? 'Hozir bajarilmoqda' : 'Hozir rejada'} · ${cur.start}–${cur.end}</div><div class="ttl">${esc(cur.title)}</div>
-          ${cur.status === 'active' ? `<div class="muted small num" id="h-run"></div>` : ''}</div>
+          ${cur.status === 'active' ? '<div class="muted small num" id="h-run"></div>' : ''}</div>
           ${cur.status === 'active' ? `<button class="btn green" data-a="finish" data-id="${cur.id}">${ic('stop')} Tugatish</button>` : `<button class="btn primary" data-a="start" data-id="${cur.id}">${ic('play')} Boshlash</button>`}</div>`
-        : nxt ? `<div class="nowcard glass"><span class="dot" style="background:${CATC[nxt.category] || '#888'}"></span><div class="grow"><div class="faint small">Keyingi ish · <span id="h-nx" class="num"></span></div><div class="ttl">${nxt.start} ${esc(nxt.title)}</div></div></div>` : ''}
+        : nxt ? `<div class="nowcard glass">${appIc('plan', CATC[nxt.category] || '#888')}<div class="grow"><div class="faint small">Keyingi ish · <span id="h-nx" class="num"></span></div><div class="ttl">${nxt.start} ${esc(nxt.title)}</div></div></div>` : ''}
       <div id="h-ws"></div>
     </div></div>`;
-  // uyg'onish / uxlash tugmalari
+  // uyg'onish / uxlash
   const ws = $('#h-ws');
   const f = { w: toMin(S.me.wake), s: toMin(S.me.sleep) };
   const nowMin = tzDate().getUTCHours() * 60 + tzDate().getUTCMinutes();
-  if (!H.day.wake_at && nowMin >= f.w && nowMin < f.w + 240) ws.innerHTML = `<div class="nowcard glass"><div class="grow"><div class="ttl">🌅 Xayrli tong!</div><div class="muted small">Turish vaqti: ${S.me.wake}</div></div><button class="btn primary" data-a="wake">Turdim</button></div>`;
-  else if (!H.day.sleep_at && nowMin >= f.s - 10 && nowMin >= f.w) ws.innerHTML = `<div class="nowcard glass"><div class="grow"><div class="ttl">🌙 Uxlash vaqti</div><div class="muted small">Reja: ${S.me.sleep}</div></div><button class="btn primary" data-a="sleep">Uxladim</button></div>`;
+  if (!H.day.wake_at && nowMin >= f.w && nowMin < f.w + 240) ws.innerHTML = `<div class="nowcard glass">${appIc('sunrise', 'linear-gradient(135deg,#ff9f0a,#ff375f)')}<div class="grow"><div class="ttl">Xayrli tong!</div><div class="muted small">Turish vaqti: ${S.me.wake}</div></div><button class="btn primary" data-a="wake">Turdim</button></div>`;
+  else if (!H.day.sleep_at && nowMin >= f.s - 10 && nowMin >= f.w) ws.innerHTML = `<div class="nowcard glass">${appIc('moon', 'linear-gradient(135deg,#5e5ce6,#bf5af2)')}<div class="grow"><div class="ttl">Uxlash vaqti</div><div class="muted small">Reja: ${S.me.sleep}</div></div><button class="btn primary" data-a="sleep">Uxladim</button></div>`;
 
-  const eDate = $('#h-date'), eClock = $('#h-clock'), eNano = $('#h-nano'), rows = $$('#wheel .pr'), extra = $$('#wheel .x');
-  let lastDate = '', n0 = 0;
+  // soat: har bir raqam alohida, o'zgarganda yengil animatsiya
+  const eDate = $('#h-date'), eHij = $('#h-hij'), eNano = $('#h-nano'), digits = $$('#h-clock .dg'), rows = $$('#wheel .pr'), extra = $$('#wheel .x');
+  let lastDate = '', lastClock = '', n0 = 0;
   frameFns.push(now => {
     const d = tzDate(now);
-    const ds = `${WD[d.getUTCDay()]}, ${d.getUTCDate()}-${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()} · ${hijri(d.toISOString().slice(0, 10))}`;
-    if (ds !== lastDate) { eDate.textContent = ds; lastDate = ds; }
-    eClock.textContent = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
-    // millisekund — aniq; mikro va nanosekund raqamlari ekranda harakatni ko'rsatish uchun (brauzer bunday aniqlikni bermaydi)
+    const ds = `${WD[d.getUTCDay()]}, ${d.getUTCDate()}-${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+    if (ds !== lastDate) { eDate.textContent = ds; eHij.textContent = hijri(d.toISOString().slice(0, 10)); lastDate = ds; }
+    const c = `${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}`;
+    if (c !== lastClock) {
+      for (let k = 0; k < 6; k++) {
+        if (c[k] !== lastClock[k]) {
+          const el = digits[k];
+          el.textContent = c[k];
+          if (lastClock) { el.classList.remove('tick'); void el.offsetWidth; el.classList.add('tick'); }
+        }
+      }
+      lastClock = c;
+    }
+    // millisekund aniq; mikro va nanosekund raqamlari harakatni ko'rsatish uchun (brauzer bunday aniqlikni bermaydi)
     const hi = performance.now();
     n0 = (n0 + 7919) % 1000;
     eNano.innerHTML = `${pad(now % 1000, 3)} <b>${pad(Math.floor(hi * 1000) % 1000, 3)} ${pad((Math.floor(hi * 1e6) + n0) % 1000, 3)}</b>`;
   });
-  const marked = k => H.prayers[k];
+
+  // namozlar: hozirgisi katta va yorqin, keyingisi vaqt yaqinlashgan sari kattalashadi
   tickFns.push(now => {
-    let i = seq.findIndex((s, k) => k < seq.length - 1 && s[1] <= now && now < seq[k + 1][1]);
-    if (i < 0) i = now < seq[0][1] ? -1 : seq.length - 1;
-    const p = i >= 0 && i < seq.length - 1 ? (now - seq[i][1]) / (seq[i + 1][1] - seq[i][1]) : 0;
-    const wn = smooth(0.6, 1, p);
+    let i = -1;
+    for (let k = 0; k < seq.length; k++) if (seq[k][1] <= now) i = k;
+    const w = seq.map(() => 0);
+    if (i < 0) w[0] = 1;
+    else if (i >= seq.length - 1) w[seq.length - 1] = 1;
+    else if (seq[i][0] === 'quyosh') {
+      // quyosh chiqqach namoz yo'q payt — diqqat Peshinga, vaqti yaqinlashgan sari kattalashadi
+      w[2] = 0.6 + 0.4 * smooth(0, 1, (now - seq[1][1]) / (seq[2][1] - seq[1][1]));
+    } else {
+      const p = (now - seq[i][1]) / (seq[i + 1][1] - seq[i][1]);
+      const wn = seq[i + 1][0] === 'quyosh' ? 0 : smooth(0.6, 1, p);
+      w[i] = 1 - wn; w[i + 1] = Math.max(w[i + 1], wn);
+    }
     rows.forEach((r, k) => {
-      let w = k === i ? 1 - wn : k === i + 1 ? (i < 0 ? 1 : wn) : 0;
-      const past = k < i;
-      r.style.transform = `scale(${(0.84 + 0.26 * w).toFixed(3)})`;
-      r.style.opacity = (past ? 0.32 : 0.45) + 0.55 * w;
-      r.classList.toggle('focus', w >= 0.5);
-      const x = extra[k];
-      if (w >= 0.5) {
-        const key = seq[k][0];
-        if (k === i && key !== 'quyosh') {
-          const end = seq[k + 1] ? (key === 'bomdod' ? seq[1][1] : seq[k + 1][1]) : null;
-          x.innerHTML = marked(key) ? (marked(key) === 'vaqtida' ? '<span style="color:var(--green)">✓ O\'z vaqtida o\'qildi</span>' : '<span style="color:var(--red)">Qazo bo\'lgan</span>')
-            : `<div class="row"><span class="num">Tugashiga ${dur(end - now)}</span><button class="btn sm green" data-a="pray" data-p="${key}">O'qidim</button></div>`;
-        } else x.innerHTML = `<span class="num">Kirishiga ${dur(seq[k][1] - now)}</span>`;
-        x.style.display = 'block';
-      } else x.style.display = 'none';
+      const past = k < i && w[k] < 0.5;
+      r.style.transform = `scale(${(0.86 + 0.2 * w[k]).toFixed(3)})`;
+      r.style.opacity = (past ? 0.36 : 0.5) + 0.5 * w[k];
+      r.classList.toggle('focus', w[k] >= 0.5);
+      const x = extra[k], key = seq[k][0];
+      if (w[k] < 0.5) { x.style.display = 'none'; return; }
+      x.style.display = 'block';
+      if (k === i && END[key]) {
+        const st = H.prayers[key];
+        const prog = Math.min(100, Math.max(0, (now - seq[k][1]) / (END[key] - seq[k][1]) * 100));
+        x.innerHTML = st ? (st === 'vaqtida' ? `<span style="color:var(--green)">✓ O'z vaqtida o'qildi — Alloh qabul qilsin</span>` : `<span style="color:var(--red)">Qazo bo'lgan</span>`)
+          : `<div class="prog"><i style="width:${prog.toFixed(1)}%"></i></div><div class="row"><span class="grow num">Tugashiga ${dur(END[key] - now)}</span><button class="btn sm green" data-a="pray" data-p="${key}">O'qidim</button></div>`;
+      } else x.innerHTML = `<span class="num">Kirishiga ${dur(seq[k][1] - now)}</span>`;
     });
     const run = $('#h-run');
     if (run && cur && cur.actual_start) run.textContent = `Boshlandi ${hhmm(cur.actual_start)}${cur.late ? ` (+${cur.late} daq)` : ''} · ${dur(now - cur.actual_start)}`;
@@ -359,13 +397,14 @@ VIEWS.reja = async (v, alive) => {
   const tomorrow = addDays(plan.today, 1);
   const f = { w: toMin(plan.wake) }; let sl = toMin(plan.sleep); if (sl <= f.w) sl += 1440; f.s = sl;
   const rows = [];
+  const nowM = (() => { const d = tzDate(); let m = d.getUTCHours() * 60 + d.getUTCMinutes(); if (m < f.w && f.s > 1440) m += 1440; return m; })();
   rows.push({ s: f.w - 0.5, html: `<div class="it marker"><span class="tm num">${plan.wake}</span><span class="bar" style="background:var(--yellow)"></span><span class="ti"><b>🌅 Uyg'onish</b>${plan.day.wake_at ? ` <span class="chip green">${hhmm(plan.day.wake_at)} da turdingiz</span>` : ''}</span></div>` });
   for (const it of plan.items) {
     if (it.kind === 'prayer') {
       const st = plan.prayers[it.prayer];
       rows.push({ s: it.s, html: `<div class="it prayer"><span class="tm num">${it.start}–${it.end}</span><span class="bar" style="background:var(--teal)"></span>
         <span class="ti"><b>${it.title}</b> <span class="faint small">${ic('lock').replace('<svg', '<svg width="12" height="12"')} faqat namoz</span></span>
-        ${st ? `<span class="chip ${st === 'vaqtida' ? 'green' : 'red'}">${st === 'vaqtida' ? "O'qildi" : 'Qazo'}</span>` : isToday ? `<button class="btn sm" data-a="pray" data-p="${it.prayer}">O'qidim</button>` : ''}</div>` });
+        ${st ? `<span class="chip ${st === 'vaqtida' ? 'green' : 'red'}">${st === 'vaqtida' ? "O'qildi" : 'Qazo'}</span>` : isToday && nowM >= it.s ? `<button class="btn sm green" data-a="pray" data-p="${it.prayer}">O'qidim</button>` : ''}</div>` });
       continue;
     }
     const conflict = plan.conflicts.includes(it.id);
@@ -508,7 +547,7 @@ VIEWS.tarix = async (v, alive) => {
     <div class="grid g4" style="margin-bottom:14px">
       <div class="metric glass"><div class="l">O'rtacha ball (30 kun)</div><div class="v num">${pct(avg)}</div><div class="s">${closed.filter(x => x.level >= 3).length} yashil · ${closed.filter(x => x.level === 2).length} sariq · ${closed.filter(x => x.level === 1).length} qizil</div></div>
       <div class="metric glass"><div class="l">Bajarilgan ishlar</div><div class="v num">${closed.reduce((a, x) => a + (x.done || 0), 0)} / ${closed.reduce((a, x) => a + (x.planned || 0), 0)}</div><div class="s">oxirgi 30 kun</div></div>
-      <div class="metric glass"><div class="l">Namozlar vaqtida</div><div class="v num">${pr.length ? pct(pr.reduce((a, x) => a + x.prayers, 0) / (pr.length * 5)) : '—'}</div><div class="s">${pr.reduce((a, x) => a + (5 - x.prayers), 0)} ta qazo</div></div>
+      <div class="metric glass"><div class="l">Namozlar vaqtida</div><div class="v num">${(() => { const c = pr.reduce((a, x) => a + (x.prayers_counted || 0), 0); return c ? pct(pr.reduce((a, x) => a + x.prayers, 0) / c) : '—'; })()}</div><div class="s">${pr.reduce((a, x) => a + ((x.prayers_counted || 0) - x.prayers), 0)} ta qazo</div></div>
       <div class="metric glass"><div class="l">O'rtacha uyqu</div><div class="v num">${sl.length ? (sl.reduce((a, x) => a + x.sleep_hours, 0) / sl.length).toFixed(1) + ' s' : '—'}</div><div class="s">${sl.length} kecha</div></div>
     </div>
     <div class="card glass"><h3>Kun ballari — oxirgi 30 kun</h3>${barChart(tr)}</div>
@@ -705,7 +744,7 @@ VIEWS.profil = async (v, alive) => {
   v.innerHTML = `<div class="page">
     <div class="head"><h1>Profil</h1></div>
     <div class="card glass"><div class="row wrap" style="gap:18px">
-      <div class="avatar">${esc((me.name || '?')[0].toUpperCase())}</div>
+      <div class="avatar">${esc(((me.name || '').match(/\p{L}|\p{N}/u) || ['?'])[0].toUpperCase())}</div>
       <div class="grow"><div style="font-size:21px;font-weight:650">${esc(me.name)}</div>
         <div class="muted">${me.username ? '@' + esc(me.username) + ' · ' : ''}${esc(me.phone || '')}${age !== null ? ` · ${age} yosh` : ''}</div>
         <div class="faint small">${me.tg_name ? 'Telegram: ' + esc(me.tg_name) : ''}${me.birth_date ? ` · tug'ilgan: ${fmtDate(me.birth_date)}` : ''}</div></div>

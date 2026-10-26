@@ -184,7 +184,7 @@ function create(db, core) {
     return bulk(u, T.addDays(today, -(n - 1)), today).map(a => ({
       date: a.date, score: a.score, level: a.level,
       done: a.stats ? a.stats.done : null, planned: a.stats ? a.stats.planned : null,
-      late_avg: a.stats ? a.stats.late_avg : null, prayers: a.stats ? a.stats.prayers_ok : null,
+      late_avg: a.stats ? a.stats.late_avg : null, prayers: a.stats ? a.stats.prayers_ok : null, prayers_counted: a.stats ? a.stats.prayers_counted : null,
       sleep_hours: a.sleep ? a.sleep.hours : null, actual_min: a.stats ? a.stats.actual_min : null,
     }));
   }
