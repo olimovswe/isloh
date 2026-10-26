@@ -1,14 +1,44 @@
 {
   "name": "isloh",
-  "version": "2.1.0",
-  "description": "Isloh — maqsad sari ongli hayot: namoz, kun rejasi va tahlil. Faqat shu kompyuterda, Telegram bot bilan.",
-  "author": { "name": "Muslimbek Olimov", "email": "olimovswe@gmail.com" },
+  "productName": "Isloh",
+  "version": "3.0.0",
+  "description": "Isloh — maqsad sari ongli hayot: namoz, kun rejasi va tahlil. Shu kompyuterdagi desktop dastur, Telegram bot bilan.",
+  "author": {
+    "name": "Muslimbek Olimov",
+    "email": "olimovswe@gmail.com"
+  },
   "homepage": "https://github.com/olimovswe/isloh",
   "repository": "github:olimovswe/isloh",
   "private": true,
-  "engines": { "node": ">=22.13" },
+  "main": "desktop/main.js",
+  "desktopName": "isloh.desktop",
   "scripts": {
-    "start": "node server/index.js",
-    "test": "node server/selftest.js"
+    "start": "electron .",
+    "test": "node core/selftest.js",
+    "dist": "electron-builder --linux dir"
+  },
+  "build": {
+    "appId": "uz.olimovswe.isloh",
+    "productName": "Isloh",
+    "executableName": "isloh",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "desktop/**",
+      "core/**",
+      "ui/**",
+      "package.json",
+      "!core/selftest.js"
+    ],
+    "linux": {
+      "target": "dir",
+      "category": "Office",
+      "icon": "ui/icons/icon-512.png"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0"
   }
 }

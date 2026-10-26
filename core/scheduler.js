@@ -1,7 +1,7 @@
 'use strict';
 /* Eslatmalar va avtomatik holatlar jadvali — har 20 soniyada tekshiriladi.
-   Har bir hodisa bir marta yuboriladi ("sent" jadvali), server qayta ishga tushsa ham takrorlanmaydi.
-   Holatlar (qazo, o'tkazib yuborilgan ish) server o'chiq bo'lgan bo'lsa ham keyin to'g'ri qo'yiladi,
+   Har bir hodisa bir marta yuboriladi ("sent" jadvali), dastur qayta ishga tushsa ham takrorlanmaydi.
+   Holatlar (qazo, o'tkazib yuborilgan ish) dastur yopiq bo'lgan bo'lsa ham keyin to'g'ri qo'yiladi,
    lekin 15 daqiqadan eski xabarlar endi yuborilmaydi. */
 const T = require('./time');
 const { esc } = require('./bot');

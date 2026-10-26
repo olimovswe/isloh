@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="web/icons/icon-512.png" width="110" alt="Isloh">
+<img src="ui/icons/icon-512.png" width="110" alt="Isloh">
 
 # Isloh
 
 **Maqsad sari ongli hayot.**
 Namoz vaqtlari va hisobi, soatma-soat kun rejasi, har kungi tahlil va ilm.
-Shaxsiy kompyuterda ishlaydi, ro'yxatdan o'tish va barcha xabarlar Telegram bot orqali.
+Shu kompyuterdagi desktop dastur. Ro'yxatdan o'tish va barcha xabarlar Telegram bot orqali.
 
 </div>
 
@@ -25,40 +25,40 @@ Shaxsiy kompyuterda ishlaydi, ro'yxatdan o'tish va barcha xabarlar Telegram bot 
 ```
  Kompyuter (shu laptop)                                   Telegram
 ┌──────────────────────────────────────────────┐         ┌────────────────────────────┐
-│ Isloh ilovasi (desktop oyna)                  │         │ @islohuzbot                 │
-│  Bosh sahifa · Reja · Tarix · Ilm · Profil    │         │  • ro'yxatdan o'tish + kod  │
-│               ▲                               │         │  • barcha eslatmalar        │
-│ Isloh serveri (127.0.0.1, fon xizmati) ───────┼────────►│  • Boshlash/Tugatish/Baho   │
-│  bot · eslatmalar jadvali · tahlil · PDF      │         │  • O'qidim/Turdim/Uxladim   │
-│  SQLite baza                                  │         │  • har kecha PDF hisobot    │
+│ Isloh — desktop dastur                        │         │ @islohuzbot                 │
+│  oyna: Bosh sahifa · Reja · Tarix · Ilm ·     │         │  • ro'yxatdan o'tish + kod  │
+│        Profil                                 │         │  • barcha eslatmalar        │
+│  ichida: bot · eslatmalar jadvali · tahlil ·  ├────────►│  • Boshlash/Tugatish/Baho   │
+│          PDF · SQLite baza                    │         │  • O'qidim/Turdim/Uxladim   │
+│  oyna yopilsa trayda ishlashda davom etadi    │         │  • har kecha PDF hisobot    │
 └──────────────────────────────────────────────┘         └────────────────────────────┘
 ```
 
-- Ilova **faqat shu kompyuterdan ochiladi**: server `127.0.0.1` da ishlaydi, tashqaridan kirib bo'lmaydi.
+- **Faqat desktop dastur** (Electron): veb-sayt, server yoki port yo'q. Oyna dastur yadrosi bilan to'g'ridan-to'g'ri gaplashadi.
 - Ro'yxatdan o'tish va xabarlar **faqat Telegram bot** orqali.
-- Tashqi kutubxona yo'q: server Node.js'ning o'zida (`node:sqlite`, `fetch`), ilova oddiy HTML/CSS/JS.
+- Oyna yopilganda dastur trayda qoladi, kompyuter yonganda o'zi ishga tushadi — eslatmalar to'xtamaydi. To'liq chiqish: tray → «Chiqish».
 
 ### Ro'yxatdan o'tish
-1. Ilova ochilganda tanishtiruv sahifalari, keyin «Kirish» sahifasi chiqadi.
-2. Telegram'da **@islohuzbot** → **Start** → «Kontaktni yuborish».
-3. Bot **6 xonali kod** beradi (3 daqiqa amal qiladi). Kodni ilovaga kiritasiz.
-4. Ism, tug'ilgan sana, turish va uxlash vaqti, shahar so'raladi va ilova ochiladi.
+1. Dastur ochilganda tanishtiruv sahifalari, keyin «Kirish» sahifasi chiqadi.
+2. Telegram'da **@islohuzbot** → **Start** → «Kontaktni yuborish» (ro'yxatdan o'tgan bo'lsangiz — **/kod**).
+3. Bot **6 xonali kod** beradi (3 daqiqa amal qiladi). Kodni dasturga kiritasiz.
+4. Ism, tug'ilgan sana, turish va uxlash vaqti, shahar so'raladi va dastur ochiladi.
 
 ### Bo'limlar
 | Bo'lim | Nima bor |
 |---|---|
-| **Bosh sahifa** | Katta soat (soat, daqiqa, soniya va undan kichik raqamlar), sana, hijriy sana. Chapda bugungi namozlar: hozirgisi katta va yorqin, o'tganlari va keyingilari kichik va xira, vaqt yaqinlashgan sari keyingisi kattalashadi. Hozirgi ish va «O'qidim» tugmasi. |
+| **Bosh sahifa** | Katta soat (soat, daqiqa, soniya va undan kichik raqamlar), sana, hijriy sana. Chapda bugungi namozlar: hozirgisi katta va yorqin, qolganlari xira. Hozirgi ish va «O'qidim» tugmasi. |
 | **Reja** | Uyg'onishdan uxlashgacha vaqt chizig'i. Namoz vaqtlari, nonushta va kechki ovqat qulflangan. Ish qo'shish: nomi, vaqti, yo'nalishi. Takrorlash: har kuni, ish kunlari yoki tanlangan kunlar. «Rejani tasdiqlash». |
 | **Tarix** | 30 kunlik ko'rsatkichlar va grafik. Qidiruv: sana, oy yoki ish nomi. Har kun: ball, reja va haqiqat chizmasi, ishlar jadvali, namozlar, uyqu, xulosalar, PDF. |
 | **Ilm** | YouTube podkastlari (kanallardan avtomatik yig'iladi, kanal qo'shish mumkin) va kitoblar. |
-| **Profil** | Telegram ma'lumotlari (ism, @username, telefon), yosh. Faollik jadvali (GitHub uslubida) va namozlar jadvali. Sozlamalar: eslatma vaqti (4/10/15/20 daq), turish va uxlash vaqti, reja eslatmasi, qorong'i yoki yorug' mavzu. |
+| **Profil** | Telegram ma'lumotlari (ism, @username, telefon), yosh. Faollik jadvali (GitHub uslubida) va namozlar jadvali. Sozlamalar: eslatma vaqti, turish va uxlash vaqti, reja eslatmasi, shahar, qorong'i yoki yorug' mavzu. |
 
 ### Bir kun (bot xabarlari)
 | Vaqt | Xabar |
 |---|---|
 | Turish vaqti | «Xayrli tong» + **[Turdim]** (kechikish hisoblanadi) |
 | Namozdan oldin / vaqti kirganda | eslatma + **[O'qidim]**; belgilanmasa — qazo |
-| Ishdan 5 daqiqa oldin | **[Boshlash]** → **[Tugatish]** → 1–5 ⭐ baho |
+| Ishdan oldin | **[Boshlash]** → **[Tugatish]** → 1–5 ⭐ baho |
 | 21:30 | «Ertangi kun rejasini tuzing» |
 | Uxlashdan 5 daqiqa oldin | bugungi kun **PDF hisoboti** |
 | Uxlash vaqti | **[Uxladim]** — uyg'onguncha bezovta qilinmaydi |
@@ -73,24 +73,27 @@ Shaxsiy kompyuterda ishlaydi, ro'yxatdan o'tish va barcha xabarlar Telegram bot 
 
 ## O'rnatish (Linux)
 
-Talab: **Node.js 22.13+**.
+Talab: **Node.js 22.13+** va npm (faqat yig'ish uchun).
 
 ```bash
-./scripts/install-local.sh          # o'rnatish: fon xizmati + ilovalar menyusida "Isloh"
+./scripts/install.sh                # yig'ish va o'rnatish: ilovalar menyusida "Isloh"
 ~/.local/share/isloh/set-token.sh   # @BotFather bergan bot tokeni (ekranda ko'rinmaydi)
+sudo ./scripts/apparmor.sh          # ixtiyoriy, bir marta: Ubuntu'da to'liq Chromium sandbox
 ```
 
-- **Ilova:** ilovalar menyusidan **Isloh**.
+- **Dastur:** ilovalar menyusidan **Isloh**; kompyuter yonganda trayda o'zi ishga tushadi.
 - **Sozlamalar:** `~/.config/isloh/.env`
 - **Ma'lumotlar:** `~/.local/share/isloh/data/isloh.db`
-- **Holat:** `systemctl --user status isloh` · **Jurnal:** `journalctl --user -u isloh -f`
-- **Sinov:** `npm test` — butun bir kun simulyatsiyasi. GitHub Actions har push'da ham tekshiradi.
+- **Jurnal:** `~/.local/share/isloh/isloh.log`
+- **Sinov:** `npm test` — butun bir kun simulyatsiyasi. GitHub Actions har push'da ham tekshiradi va dasturni yig'adi.
+- **Ishlab chiqish:** `npm start` — dasturni manba kodidan ochadi.
 
 ## Tuzilishi
 
 ```
-server/    Node.js server: API, Telegram bot, eslatmalar jadvali, tahlil, PDF, podkastlar
-web/       Ilova interfeysi (HTML, CSS, JS)
+desktop/   Electron: oyna, tray, avtomatik ishga tushish, IPC ko'prik
+core/      Dastur yadrosi: Telegram bot, eslatmalar jadvali, tahlil, PDF, podkastlar, SQLite
+ui/        Oyna interfeysi (HTML, CSS, JS)
 scripts/   o'rnatish va bot tokenini qo'yish
 ```
 

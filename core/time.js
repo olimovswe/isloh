@@ -1,6 +1,6 @@
 'use strict';
 /* Vaqt yordamchilari. Har bir foydalanuvchining vaqt mintaqasi (O'zbekiston: UTC+5) hisobga olinadi,
-   shuning uchun server qaysi mamlakatda turishidan qat'i nazar vaqtlar to'g'ri chiqadi. */
+   shuning uchun kompyuter soat mintaqasidan qat'i nazar vaqtlar to'g'ri chiqadi. */
 const Prayer = require('./prayer');
 
 const pad = n => String(n).padStart(2, '0');

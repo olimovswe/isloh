@@ -18,15 +18,29 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Sintaksis tekshiruvi
-        run: for f in server/*.js web/*.js; do node --check "$f"; done
+        run: for f in core/*.js ui/*.js desktop/*.js; do node --check "$f"; done
       - name: To'liq kun simulyatsiyasi (bot, namoz, reja, tahlil, PDF)
         run: npm test
-      - name: Server ishga tushishi
+      - name: Dastur yadrosi (IPC so'rovlari)
         run: |
-          PORT=8099 DATA_DIR=/tmp/isloh node server/index.js > server.log 2>&1 &
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8099/api/config > /dev/null && break; sleep 1; done
-          curl -sf http://127.0.0.1:8099/ | grep -q Isloh
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/api/home)" = 401
-          echo "Server ishlayapti, kirishsiz so'rov rad etildi"
-      - if: failure()
-        run: cat server.log || true
+          node -e "
+            const a = require('./core/app').create({ dataDir: '/tmp/isloh', envFile: '/dev/null', log: () => {} });
+            (async () => {
+              const c = await a.handle('GET', '/api/config');
+              if (c.status !== 200 || !c.data.cities.length) throw new Error('config');
+              const h = await a.handle('GET', '/api/home');
+              if (h.status !== 401) throw new Error('kirishsiz so\'rov rad etilmadi');
+              console.log('Yadro ishlayapti, kirishsiz so\'rov rad etildi');
+            })().catch(e => { console.error(e); process.exit(1); });"
+
+  build:
+    name: Desktop dastur (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run dist
+      - run: test -x dist/linux-unpacked/isloh && du -sh dist/linux-unpacked

@@ -1,5 +1,5 @@
 'use strict';
-/* Isloh — veb-ilova (PWA). Kompyuterda ham, telefonda ham ishlaydi. Server bilan /api orqali gaplashadi. */
+/* Isloh — desktop dastur oynasi. Dastur yadrosi bilan window.isloh (IPC) orqali gaplashadi. */
 
 /* ================================================================ yordamchilar */
 const $ = (s, el = document) => el.querySelector(s);
@@ -74,12 +74,12 @@ const ic = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="curren
 
 /* ================================================================ holat, API, xabarlar */
 const S = { token: localStorage.getItem('isloh_token') || '', me: null, config: null };
+/* Desktop dastur yadrosi bilan aloqa (IPC) — internet, server yoki port kerak emas */
 async function api(method, path, body) {
-  const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json', ...(S.token ? { Authorization: 'Bearer ' + S.token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
-  const j = await r.json().catch(() => ({}));
+  const r = await window.isloh.api(method, path, body, S.token);
   if (r.status === 401 && S.token) { logoutLocal(); throw new Error('Qaytadan kiring'); }
-  if (!r.ok) throw new Error(j.error || 'Xatolik yuz berdi');
-  return j;
+  if (r.status !== 200) throw new Error(r.error || 'Xatolik yuz berdi');
+  return r.data;
 }
 let toastT;
 function toast(msg, bad = false) {
@@ -250,7 +250,6 @@ function setupForm(g) {
 }
 function logoutLocal() {
   S.token = ''; S.me = null; localStorage.removeItem('isloh_token');
-  if (ES) { ES.close(); ES = null; }
   gateStep = 'login'; render();
 }
 
@@ -310,7 +309,7 @@ VIEWS.home = async (v, alive) => {
       }
       lastClock = c;
     }
-    // millisekund aniq; mikro va nanosekund raqamlari harakatni ko'rsatish uchun (brauzer bunday aniqlikni bermaydi)
+    // millisekund aniq; mikro va nanosekund raqamlari harakatni ko'rsatish uchun (tizim soati bunday aniqlikni bermaydi)
     const hi = performance.now();
     n0 = (n0 + 7919) % 1000;
     eNano.innerHTML = `${pad(now % 1000, 3)} <b>${pad(Math.floor(hi * 1000) % 1000, 3)} ${pad((Math.floor(hi * 1e6) + n0) % 1000, 3)}</b>`;
@@ -650,13 +649,7 @@ async function dayDetail(v, ds, alive) {
     const b = e.target.closest('[data-a]'); if (!b) return;
     if (b.dataset.a === 'back') { location.hash = '#/tarix'; return; }
     if (b.dataset.a === 'pdf') {
-      try {
-        const r = await fetch(`/api/report/${ds}.pdf`, { headers: { Authorization: 'Bearer ' + S.token } });
-        if (!r.ok) throw new Error('PDF tayyorlanmadi');
-        const url = URL.createObjectURL(await r.blob());
-        const link = document.createElement('a'); link.href = url; link.download = `isloh-${ds}.pdf`; link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-      } catch (err) { fail(err); }
+      try { const p = await window.isloh.savePdf(ds, S.token); if (p) toast('PDF saqlandi va ochildi'); } catch (err) { fail(err); }
     }
   };
 }
@@ -675,7 +668,7 @@ VIEWS.ilm = async (v, alive) => {
     <div class="card glass"><div class="row wrap">
       <div class="chips grow"><span class="chip pick ${!ch ? 'on' : ''}" data-c="">Hammasi</span>${F.channels.map(c => `<span class="chip pick ${ch === c.channel_id ? 'on' : ''}" data-c="${c.channel_id}">${esc(c.title || 'Kanal')} <span class="faint">${c.videos}</span></span>`).join('')}</div>
       <div class="row" style="min-width:300px"><input type="text" id="chu" placeholder="YouTube kanal havolasi yoki @nomi"><button class="btn" data-a="addch">${ic('plus')} Kanal</button></div></div>
-      <div class="faint small" style="margin-top:8px">Yangi videolar kanallardan avtomatik yig'iladi (har 30 daqiqada).</div></div>
+      <div class="faint small" style="margin-top:8px">Yangi videolar kanallardan avtomatik yig'iladi (har 10 daqiqada).</div></div>
     ${F.items.length ? `<div class="vgrid">${F.items.map(vcard).join('')}</div>` : '<div class="empty">Hozircha video yo\'q. Internetga ulanganda kanallardan yuklanadi.</div>'}
     ${F.items.length >= 24 ? '<div style="text-align:center;margin-top:16px"><button class="btn" id="more">Yana</button></div>' : ''}</div>`;
   let items = F.items;
@@ -814,25 +807,22 @@ VIEWS.profil = async (v, alive) => {
 
 /* ================================================================ jonli yangilanish
    Botda tugma bosilganda (Boshlash, O'qidim...) ilova o'zi yangilanadi. Xabarlarning hammasi botdan keladi. */
-let ES = null, refreshT;
+let evBound = false, refreshT;
 function startEvents() {
-  if (ES || !S.token) return;
-  ES = new EventSource(`/api/events?token=${encodeURIComponent(S.token)}`);
-  ES.onmessage = e => {
-    let ev; try { ev = JSON.parse(e.data); } catch (err) { return; }
-    if (ev.type === 'refresh') {
-      clearTimeout(refreshT);
-      refreshT = setTimeout(() => { if (!$('.modal-bg') && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) refresh(); }, 400);
-    }
-  };
-  ES.onerror = () => { ES.close(); ES = null; setTimeout(startEvents, 5000); };
+  if (evBound) return;
+  evBound = true;
+  window.isloh.onEvent(ev => {
+    if (ev.type !== 'refresh' || !S.me || ev.userId !== S.me.id) return;
+    clearTimeout(refreshT);
+    refreshT = setTimeout(() => { if (!$('.modal-bg') && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) refresh(); }, 400);
+  });
 }
 
 /* ================================================================ ishga tushirish */
 (async function boot() {
   applyTheme();
   requestAnimationFrame(loop);
-  try { S.config = await api('GET', '/api/config'); } catch (e) { $('#gate').innerHTML = '<div class="gate"><div class="card glass"><h1>Server bilan aloqa yo\'q</h1><p>Isloh serveri ishga tushirilganini tekshiring.</p></div></div>'; return; }
+  try { S.config = await api('GET', '/api/config'); } catch (e) { $('#gate').innerHTML = '<div class="gate"><div class="card glass"><h1>Isloh ishga tushmadi</h1><p>Dasturni yopib, qayta oching.</p></div></div>'; return; }
   if (S.token) { try { S.me = await api('GET', '/api/me'); startEvents(); } catch (e) { S.token = ''; } }
   applyTheme();
   render();

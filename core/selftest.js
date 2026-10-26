@@ -1,6 +1,6 @@
 'use strict';
 /* Server mantig'ini sinash: vaqtni sun'iy siljitib, butun bir kunni o'tkazamiz.
-   Ishga tushirish: node server/selftest.js */
+   Ishga tushirish: node core/selftest.js */
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
