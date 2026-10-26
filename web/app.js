@@ -268,10 +268,10 @@ VIEWS.home = async (v, alive) => {
   const mark = k => (H.prayers[k] === 'vaqtida' ? `<span style="color:var(--green)">${ic('check')}</span>` : H.prayers[k] === 'qazo' ? `<span style="color:var(--red)">${ic('x')}</span>` : '');
   const appIc = (name, bg) => `<div class="app" style="background:${bg}">${ic(name)}</div>`;
   v.innerHTML = `<div class="home">
-    <div class="wheel glass" id="wheel">${seq.map(([k, t], i) => `<div class="pr ${k === 'quyosh' || k === 'ertaga' ? 'minor' : ''}" data-i="${i}">
+    <div class="wheel" id="wheel"><div class="track">${seq.map(([k, t], i) => `<div class="ln" data-i="${i}"><div class="pr ${k === 'quyosh' || k === 'ertaga' ? 'minor' : ''}">
       <span class="ic">${ic(ICON[k])}</span>
       <span class="n">${label(k)}${sub[k] ? `<small>${sub[k]}</small>` : ''}</span><span class="t num">${hhmm(t)}</span><span class="s">${mark(k)}</span>
-    </div><div class="x" data-x="${i}"></div>`).join('')}</div>
+    </div><div class="x"></div></div>`).join('')}</div></div>
     <div class="clockbox">
       <div class="date" id="h-date"></div>
       <div class="hij" id="h-hij"></div>
@@ -292,7 +292,8 @@ VIEWS.home = async (v, alive) => {
   else if (!H.day.sleep_at && nowMin >= f.s - 10 && nowMin >= f.w) ws.innerHTML = `<div class="nowcard glass">${appIc('moon', 'linear-gradient(135deg,#5e5ce6,#bf5af2)')}<div class="grow"><div class="ttl">Uxlash vaqti</div><div class="muted small">Reja: ${S.me.sleep}</div></div><button class="btn primary" data-a="sleep">Uxladim</button></div>`;
 
   // soat: har bir raqam alohida, o'zgarganda yengil animatsiya
-  const eDate = $('#h-date'), eHij = $('#h-hij'), eNano = $('#h-nano'), digits = $$('#h-clock .dg'), rows = $$('#wheel .pr'), extra = $$('#wheel .x');
+  const eDate = $('#h-date'), eHij = $('#h-hij'), eNano = $('#h-nano'), digits = $$('#h-clock .dg'), rows = $$('#wheel .pr'), extra = $$('#wheel .x'), lines = $$('#wheel .ln'), track = $('#wheel .track'), wheelEl = $('#wheel');
+  let lastShift = null;
   let lastDate = '', lastClock = '', n0 = 0;
   frameFns.push(now => {
     const d = tzDate(now);
@@ -330,21 +331,37 @@ VIEWS.home = async (v, alive) => {
       const wn = seq[i + 1][0] === 'quyosh' ? 0 : smooth(0.6, 1, p);
       w[i] = 1 - wn; w[i + 1] = Math.max(w[i + 1], wn);
     }
+    let fi = 0;
     rows.forEach((r, k) => {
+      if (w[k] > w[fi]) fi = k;
       const past = k < i && w[k] < 0.5;
-      r.style.transform = `scale(${(0.86 + 0.2 * w[k]).toFixed(3)})`;
-      r.style.opacity = (past ? 0.36 : 0.5) + 0.5 * w[k];
+      // lyrics uslubi: hozirgisi katta va aniq, qolganlari kichik, xira va biroz xiralashgan
+      r.style.transform = `scale(${(0.8 + 0.3 * w[k]).toFixed(3)})`;
+      r.style.opacity = ((past ? 0.26 : 0.4) + 0.6 * w[k]).toFixed(3);
+      r.style.filter = `blur(${((1 - w[k]) * 1.3).toFixed(2)}px)`;
       r.classList.toggle('focus', w[k] >= 0.5);
       const x = extra[k], key = seq[k][0];
       if (w[k] < 0.5) { x.style.display = 'none'; return; }
       x.style.display = 'block';
+      let p;
       if (k === i && END[key]) {
         const st = H.prayers[key];
-        const prog = Math.min(100, Math.max(0, (now - seq[k][1]) / (END[key] - seq[k][1]) * 100));
+        p = (now - seq[k][1]) / (END[key] - seq[k][1]);
         x.innerHTML = st ? (st === 'vaqtida' ? `<span style="color:var(--green)">✓ O'z vaqtida o'qildi — Alloh qabul qilsin</span>` : `<span style="color:var(--red)">Qazo bo'lgan</span>`)
-          : `<div class="prog"><i style="width:${prog.toFixed(1)}%"></i></div><div class="row"><span class="grow num">Tugashiga ${dur(END[key] - now)}</span><button class="btn sm green" data-a="pray" data-p="${key}">O'qidim</button></div>`;
-      } else x.innerHTML = `<span class="num">Kirishiga ${dur(seq[k][1] - now)}</span>`;
+          : `<div class="row"><span class="num">Tugashiga ${dur(END[key] - now)}</span><button class="btn sm green" data-a="pray" data-p="${key}">O'qidim</button></div>`;
+        if (st) p = 1;
+      } else {
+        const prev = k > 0 ? seq[k - 1][1] : seq[k][1] - 6 * 3600e3;
+        p = (now - prev) / (seq[k][1] - prev);
+        x.innerHTML = `<span class="num">Kirishiga ${dur(seq[k][1] - now)}</span>`;
+      }
+      // karaoke: nomi vaqt o'tgan sari to'lib boradi
+      r.style.setProperty('--p', `${(Math.max(0, Math.min(1, p)) * 100).toFixed(2)}%`);
     });
+    // ro'yxat silliq suriladi: hozirgi namoz doim markazda
+    const ln = lines[fi];
+    const shift = Math.round(wheelEl.clientHeight / 2 - (ln.offsetTop + ln.offsetHeight / 2));
+    if (shift !== lastShift) { track.style.transform = `translateY(${shift}px)`; lastShift = shift; }
     const run = $('#h-run');
     if (run && cur && cur.actual_start) run.textContent = `Boshlandi ${hhmm(cur.actual_start)}${cur.late ? ` (+${cur.late} daq)` : ''} · ${dur(now - cur.actual_start)}`;
     const nx = $('#h-nx');
