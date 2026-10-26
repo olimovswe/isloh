@@ -59,19 +59,20 @@ const at = (ds, hhmm) => T.instant(ds, T.toMin(hhmm), 5);
   // --- reja tuzish (kechqurun, ertangi kun uchun)
   fake = at('2026-10-25', '21:40');
   const plan0 = core.planGet(u, D);
-  check("ovqat shablonlari avtomatik qo'yiladi", () => assert.equal(plan0.items.filter(i => i.kind === 'meal').length, 2));
+  check("standart ovqat bloklari yo'q — rejani foydalanuvchi o'zi tuzadi", () => assert.equal(plan0.items.filter(i => i.kind !== 'prayer').length, 0));
   check('namoz bloklari qulflangan', () => assert.equal(plan0.items.filter(i => i.kind === 'prayer').length, 5));
   const bomdod = plan0.items.find(i => i.prayer === 'bomdod');
   thrown = null;
   try { core.taskCreate(u, { date: D, title: 'Test', start: bomdod.start, end: T.fmtMin(T.toMin(bomdod.start) + 30) }); } catch (e) { thrown = e; }
   check("namoz vaqtiga ish qo'yib bo'lmaydi", () => assert(thrown && thrown.message.includes('Bomdod namozi')));
-  thrown = null;
-  try { core.taskCreate(u, { date: D, title: 'Test', start: '07:10', end: '07:40' }); } catch (e) { thrown = e; }
-  check("ovqat vaqtiga ish qo'yib bo'lmaydi", () => assert(thrown && thrown.message.includes('Nonushta')));
-  const tEng = core.taskCreate(u, { date: D, title: 'Ingliz tili', start: '05:50', end: '06:50', category: 'ilm', repeat: { type: 'daily' } });
+  const tEng = core.taskCreate(u, { date: D, title: 'Ingliz tili', start: '05:50', end: '06:50', category: 'ilm' });
   const tBook = core.taskCreate(u, { date: D, title: 'Kitob o\'qish', start: '08:00', end: '09:00', category: 'ilm' });
   const tAlgo = core.taskCreate(u, { date: D, title: 'Algoritmlar', start: '09:30', end: '11:00', category: 'ish' });
-  check('takrorlanuvchi ish ertasiga ham chiqadi', () => assert(core.planGet(u, D2).items.some(i => i.title === 'Ingliz tili')));
+  thrown = null;
+  try { core.taskCreate(u, { date: D, title: 'Test', start: '08:30', end: '09:10' }); } catch (e) { thrown = e; }
+  check("ishlar ustma-ust tushmaydi", () => assert(thrown && thrown.message.includes("Kitob")));
+  core.taskCreate(u, { date: '2026-10-29', title: 'Indinga ish', start: '10:00', end: '10:30', category: 'ovqat' });
+  check('istalgan kunga reja: oy kalendari', () => { const mm = core.planMonth(u, '2026-10'); assert.equal(mm[D], 3); assert.equal(mm['2026-10-29'], 1); });
   core.planReady(u, D, true);
 
   // --- ertalab: uyg'onish

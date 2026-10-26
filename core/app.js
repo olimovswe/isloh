@@ -44,15 +44,13 @@ function create({ dataDir, envFile, log = console.log, onEvent = () => {} }) {
   route('GET', '/api/home', ({ user }) => core.home(user));
   route('POST', '/api/prayers', ({ user, body }) => core.prayerMark(user, body.date || core.activeDate(user), body.prayer));
   route('GET', '/api/plan', ({ user, q }) => core.planGet(user, q.get('date') || core.activeDate(user)));
-  route('POST', '/api/plan/ready', ({ user, body }) => core.planReady(user, body.date, body.ready !== false));
+  route('GET', '/api/plan/month', ({ user, q }) => core.planMonth(user, q.get('m')));
   route('POST', '/api/tasks', ({ user, body }) => core.taskCreate(user, body));
   route('PATCH', '/api/tasks/(\\d+)', ({ user, m, body }) => core.taskUpdate(user, int(m[1]), body));
   route('DELETE', '/api/tasks/(\\d+)', ({ user, m }) => core.taskDelete(user, int(m[1])));
   route('POST', '/api/tasks/(\\d+)/start', ({ user, m }) => core.taskStart(user, int(m[1])));
   route('POST', '/api/tasks/(\\d+)/finish', ({ user, m }) => core.taskFinish(user, int(m[1])));
   route('POST', '/api/tasks/(\\d+)/rate', ({ user, m, body }) => core.taskRate(user, int(m[1]), body.rating, body.note));
-  route('PATCH', '/api/templates/(\\d+)', ({ user, m, body }) => core.templateUpdate(user, int(m[1]), body));
-  route('DELETE', '/api/templates/(\\d+)', ({ user, m }) => core.templateDelete(user, int(m[1])));
   route('POST', '/api/wake', ({ user, body }) => core.wake(user, body.date || core.activeDate(user)));
   route('POST', '/api/sleep', ({ user, body }) => core.sleep(user, body.date || core.activeDate(user)));
   route('GET', '/api/history', ({ user, q }) => analysis.history(user, q.get('q') || '', 20, int(q.get('offset')) || 0));

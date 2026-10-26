@@ -15,6 +15,7 @@ const ICON = path.join(UI, 'icons', 'icon-512.png');
 const HIDDEN = process.argv.includes('--hidden');
 
 app.setName('Isloh');
+app.commandLine.appendSwitch('lang', 'en-GB'); // vaqt maydonlari 24 soatlik (20:00, 8:00 PM emas)
 if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 
 /* --------------------------------------------------------------- jurnal */
@@ -59,7 +60,7 @@ function serveUi(req) {
   if (!file.startsWith(UI + path.sep)) return new Response('', { status: 403 });
   try {
     const body = fs.readFileSync(file);
-    return new Response(body, { headers: { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Content-Security-Policy': CSP } });
+    return new Response(body, { headers: { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Content-Security-Policy': CSP, 'Cache-Control': 'no-store' } });
   } catch (e) {
     return new Response('', { status: 404 });
   }

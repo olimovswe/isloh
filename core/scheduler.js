@@ -74,9 +74,9 @@ function create({ db, core, bot, bus, log = console.log }) {
     const tomorrow = T.addDays(today, 1);
     let remind = T.toMin(u.plan_remind);
     if (remind < f.wake) remind += 1440;
-    if (!core.dayRow(u, tomorrow).plan_ready) {
+    if (!core.dayRow(u, tomorrow).plan_ready && !db.get("SELECT 1 FROM tasks WHERE user_id=? AND date=? AND kind='task'", u.id, tomorrow)) {
       ev.push({ key: `plan:${today}`, at: T.instant(today, remind, u.tz),
-        msg: { text: `📝 <b>Ertangi kun rejasini tuzish vaqti</b>\n${T.fmtDay(tomorrow)}\n\nKompyuterdagi Isloh ilovasida «Reja» → «Ertaga» ni oching. Uyg'onish ${u.wake}, namoz vaqtlari avtomatik qo'yilgan — bo'sh vaqtlarga ishlaringizni joylang.` } });
+        msg: { text: `📝 <b>Ertangi kun rejasini tuzish vaqti</b>\n${T.fmtDay(tomorrow)}\n\nKompyuterdagi Isloh ilovasida «Bugun» bo'limini oching va kalendardan ertangi kunni tanlang. Namozlar o'z joyida — ishlaringizni ular orasiga qo'shing, vaqti kelganda shu yerda eslatib turaman.` } });
     }
     ev.push({ key: `pdf:${today}`, at: sleepAt - 5 * 60e3, pdf: today });
     if (!day.sleep_at) ev.push({ key: `s:${today}`, at: sleepAt, msg: { text: `🌙 <b>Uxlash vaqti</b> — ${u.sleep}\nYotganingizda tugmani bosing. Ertalab ${u.wake} gacha bezovta qilmayman.`, rows: [[{ text: '😴 Uxladim', callback_data: `sl:${today}` }]], sound: true } });

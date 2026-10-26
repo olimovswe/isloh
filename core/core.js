@@ -6,16 +6,15 @@ const T = require('./time');
 
 class ApiError extends Error { constructor(status, message) { super(message); this.status = status; } }
 const CATS = { ilm: 'Ilm', din: 'Din', ish: 'Ish', sport: "Sog'liq", oila: 'Oila', ovqat: 'Ovqat', boshqa: 'Boshqa' };
-const DEFAULT_TEMPLATES = [
-  { title: 'Nonushta', start: '07:00', end: '07:30', category: 'ovqat', kind: 'meal' },
-  { title: 'Kechki ovqat', start: '19:30', end: '20:00', category: 'ovqat', kind: 'meal' },
-];
 const clean = v => String(v ?? '').replace(/[\p{Cf}\p{Cc}\u3164\u115F\u1160\uFFA0\u2800]/gu, '').replace(/\s+/g, ' ').trim();
 const str = (v, n) => clean(v).slice(0, n);
 const sha = s => crypto.createHash('sha256').update(s).digest('hex');
 
 function create(db, bus = { emit() {} }) {
   const now = () => Date.now();
+  // Avvalgi versiyalardagi standart ovqat bloklari (Nonushta, Kechki ovqat) endi yo'q: rejani foydalanuvchi o'zi tuzadi
+  db.run("DELETE FROM tasks WHERE kind='meal' AND status='planned' AND template_id IN (SELECT id FROM templates WHERE kind='meal')");
+  db.run("DELETE FROM templates WHERE kind='meal'");
 
   /* ------------------------------------------------------------ foydalanuvchi */
   const userById = id => db.get('SELECT * FROM users WHERE id=?', id);
@@ -38,12 +37,8 @@ function create(db, bus = { emit() {} }) {
     if (u) {
       db.run('UPDATE users SET tg_id=?, phone=?, username=?, tg_name=? WHERE id=?', c.tg_id, phone, c.username || '', name, u.id);
     } else {
-      const r = db.run('INSERT INTO users (tg_id, phone, username, tg_name, name, created_at) VALUES (?,?,?,?,?,?)',
+      db.run('INSERT INTO users (tg_id, phone, username, tg_name, name, created_at) VALUES (?,?,?,?,?,?)',
         c.tg_id, phone, c.username || '', name, clean(c.first_name) || name || 'Foydalanuvchi', now());
-      for (const t of DEFAULT_TEMPLATES) {
-        db.run('INSERT INTO templates (user_id,title,start,end,category,kind,days,active,created_at) VALUES (?,?,?,?,?,?,127,1,?)',
-          r.lastInsertRowid, t.title, t.start, t.end, t.category, t.kind, now());
-      }
     }
     return userByTg(c.tg_id);
   }
@@ -218,7 +213,7 @@ function create(db, bus = { emit() {} }) {
     const title = str(b.title, 120);
     if (!title) throw new ApiError(400, 'Ish nomini yozing');
     const category = CATS[b.category] ? b.category : 'boshqa';
-    const kind = category === 'ovqat' ? 'meal' : 'task';
+    const kind = 'task';
     validate(u, ds, b.start, b.end);
     const mask = daysMask(b.repeat);
     let tplId = null;
@@ -289,6 +284,12 @@ function create(db, bus = { emit() {} }) {
     db.run('UPDATE tasks SET rating=?, note=CASE WHEN ?<>\'\' THEN ? ELSE note END WHERE id=?', r, str(note, 500), str(note, 500), id);
     bus.emit(u.id, { type: 'refresh' });
     return taskRow(u, getTask(u, id));
+  }
+  /* Kalendar uchun: oy kunlaridagi ishlar soni */
+  function planMonth(u, ym) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(ym))) throw new ApiError(400, "Oy noto'g'ri");
+    const rows = db.all("SELECT date, COUNT(*) n FROM tasks WHERE user_id=? AND date BETWEEN ? AND ? GROUP BY date", u.id, ym + '-01', ym + '-31');
+    return Object.fromEntries(rows.map(r => [r.date, r.n]));
   }
   function planReady(u, ds, ready) {
     if (!T.validDate(ds)) throw new ApiError(400, "Sana noto'g'ri");
@@ -386,7 +387,7 @@ function create(db, bus = { emit() {} }) {
 
   return { ApiError, CATS, userById, userByTg, publicUser, registerContact, newCode, verifyCode, createSession, registeredChats, auth, logout, updateMe,
     activeDate, prayerSlots, planGet, taskCreate, taskUpdate, taskDelete, taskStart, taskFinish, taskRate, getTask, taskRow, tasksOf,
-    planReady, templatesList, templateUpdate, templateDelete, prayersOf, prayerMark, prayerAutoQazo, wake, sleep, dayRow, setDay,
+    planReady, planMonth, templatesList, templateUpdate, templateDelete, prayersOf, prayerMark, prayerAutoQazo, wake, sleep, dayRow, setDay,
     materialize, home, span };
 }
 

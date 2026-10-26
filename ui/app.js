@@ -68,6 +68,7 @@ const P = {
   sunrise: '<path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 8V6M5 12l1.4 1.4M19 12l-1.4 1.4M2 16h1.5M20.5 16H22"/>',
   sunset: '<path d="M3 19h18M7 19a5 5 0 0 1 10 0"/><path d="M12 4v6m-3-3 3 3 3-3"/>',
   cloudSun: '<path d="M12 3v1.5M5.6 5.6l1 1M18.4 5.6l-1 1M3 12h1.5"/><path d="M8.2 12.5a4 4 0 0 1 7.3-2.6"/><path d="M8 20h9a3.5 3.5 0 0 0 0-7h-.3A5 5 0 0 0 7 14.6 2.8 2.8 0 0 0 8 20z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   repeat: '<path d="M4 12V9a3 3 0 0 1 3-3h13l-3-3m3 3-3 3M20 12v3a3 3 0 0 1-3 3H4l3 3m-3-3 3-3"/>',
 };
 const ic = (n, cls = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="${cls}">${P[n]}</svg>`;
@@ -111,7 +112,7 @@ function confirmBox(title, text, ok = 'Ha', danger = false) {
 function applyTheme() { document.documentElement.dataset.theme = (S.me && S.me.theme) || localStorage.getItem('isloh_theme') || 'dark'; }
 
 /* ================================================================ marshrutlar */
-const NAV = [['home', 'home', 'Bosh sahifa'], ['reja', 'plan', 'Reja'], ['tarix', 'history', 'Tarix'], ['ilm', 'book', 'Ilm'], ['profil', 'user', 'Profil']];
+const NAV = [['home', 'home', 'Bosh sahifa'], ['bugun', 'plan', 'Bugun'], ['tarix', 'history', 'Tarix'], ['ilm', 'book', 'Ilm'], ['profil', 'user', 'Profil']];
 const VIEWS = {};
 const route = () => { const r = location.hash.replace(/^#\/?/, '').split('?')[0]; return VIEWS[r] ? r : 'home'; };
 const param = k => new URLSearchParams(location.hash.split('?')[1] || '').get(k);
@@ -403,124 +404,297 @@ function rateModal(t, after) {
   });
 }
 
-/* ================================================================ REJA */
-VIEWS.reja = async (v, alive) => {
-  const today = (await api('GET', '/api/home')).date;
-  const ds = param('d') || today;
-  const plan = await api('GET', `/api/plan?date=${ds}`);
-  if (!alive()) return;
-  const isToday = ds === plan.today, isFuture = ds > plan.today, isPast = ds < plan.today;
-  const tomorrow = addDays(plan.today, 1);
-  const f = { w: toMin(plan.wake) }; let sl = toMin(plan.sleep); if (sl <= f.w) sl += 1440; f.s = sl;
-  const rows = [];
-  const nowM = (() => { const d = tzDate(); let m = d.getUTCHours() * 60 + d.getUTCMinutes(); if (m < f.w && f.s > 1440) m += 1440; return m; })();
-  rows.push({ s: f.w - 0.5, html: `<div class="it marker"><span class="tm num">${plan.wake}</span><span class="bar" style="background:var(--yellow)"></span><span class="ti"><b>🌅 Uyg'onish</b>${plan.day.wake_at ? ` <span class="chip green">${hhmm(plan.day.wake_at)} da turdingiz</span>` : ''}</span></div>` });
-  for (const it of plan.items) {
-    if (it.kind === 'prayer') {
-      const st = plan.prayers[it.prayer];
-      rows.push({ s: it.s, html: `<div class="it prayer"><span class="tm num">${it.start}–${it.end}</span><span class="bar" style="background:var(--teal)"></span>
-        <span class="ti"><b>${it.title}</b> <span class="faint small">${ic('lock').replace('<svg', '<svg width="12" height="12"')} faqat namoz</span></span>
-        ${st ? `<span class="chip ${st === 'vaqtida' ? 'green' : 'red'}">${st === 'vaqtida' ? "O'qildi" : 'Qazo'}</span>` : isToday && nowM >= it.s ? `<button class="btn sm green" data-a="pray" data-p="${it.prayer}">O'qidim</button>` : ''}</div>` });
-      continue;
-    }
-    const conflict = plan.conflicts.includes(it.id);
-    const st = STATUS[it.status] || STATUS.planned;
-    let acts = '';
-    if (it.kind === 'task' && isToday) {
-      if (it.status === 'planned') acts = `<button class="btn sm primary" data-a="start" data-id="${it.id}">${ic('play')} Boshlash</button>`;
-      if (it.status === 'active') acts = `<button class="btn sm green" data-a="finish" data-id="${it.id}">${ic('stop')} Tugatish</button>`;
-      if (it.status === 'done') acts = it.rating ? `<span class="chip">${'★'.repeat(it.rating)}</span>` : `<button class="btn sm" data-a="rate" data-id="${it.id}">Baholash</button>`;
-    }
-    if (it.status === 'planned' && !isPast) acts += `<button class="ibtn" data-a="edit" data-id="${it.id}" title="Tahrirlash">${ic('edit')}</button><button class="ibtn" data-a="del" data-id="${it.id}" title="O'chirish">${ic('trash')}</button>`;
-    const info = it.actual_start ? `<div class="faint small num">Haqiqatda: ${hhmm(it.actual_start)}–${it.actual_end ? hhmm(it.actual_end) : '…'}${it.late ? ` · <span style="color:${it.late > 20 ? 'var(--red)' : 'var(--yellow)'}">+${it.late} daq kech</span>` : " · o'z vaqtida"}</div>` : '';
-    rows.push({ s: it.s, html: `<div class="it ${it.kind} ${it.status === 'active' ? 'active' : ''} ${conflict ? 'conflict' : ''}"><span class="tm num">${it.start}–${it.end}</span>
-      <span class="bar" style="background:${CATC[it.category] || '#888'}"></span>
-      <span class="ti"><b>${esc(it.title)}</b> ${it.template ? `<span class="faint">${ic('repeat').replace('<svg', '<svg width="12" height="12"')}</span>` : ''}
-        ${it.kind === 'task' && it.status !== 'planned' ? `<span class="chip ${st[1]}">${st[0]}</span>` : ''}${conflict ? ' <span class="chip red">namoz vaqtiga to\'g\'ri keldi</span>' : ''}${info}</span>${acts}</div>` });
+/* ================================================================ BUGUN: istalgan kun rejasi */
+const AFTER = { bomdod: 'Bomdoddan keyin', peshin: 'Peshindan keyin', asr: 'Asrdan keyin', shom: 'Shomdan keyin', xufton: 'Xuftondan keyin' };
+const PICON = { bomdod: 'dawn', quyosh: 'sunrise', peshin: 'sun', asr: 'cloudSun', shom: 'sunset', xufton: 'moon' };
+const DURS = [15, 30, 45, 60, 90, 120];
+let PL = null, calMonth = null, calFor = null;
+
+function dayTitle(ds, today) {
+  const n = Math.round((pd(ds) - pd(today)) / 864e5);
+  return { 0: 'Bugun', 1: 'Ertaga', 2: 'Indinga', [-1]: 'Kecha' }[n] || WD[pd(ds).getUTCDay()];
+}
+const dayMin = ts => { const d = tzDate(ts); return d.getUTCHours() * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60; };
+const hm = m => (m < 60 ? `${m} daq` : m % 60 ? `${Math.floor(m / 60)} s ${m % 60} daq` : `${m / 60} soat`);
+
+/* Hozirgi va keyingi namoz (bugungi vaqtlar bo'yicha) */
+function prayerNow(H, now = Date.now()) {
+  const cur = BLOCKS.find(p => H.windows[p] && now >= H.windows[p][0] && now < H.windows[p][1]) || null;
+  const seq = BLOCKS.map(p => [p, H.times[p]]).concat([['bomdod', H.next_bomdod]]);
+  const nx = seq.find(([, t]) => t > now) || seq[seq.length - 1];
+  return { cur, next: nx[0], nextAt: nx[1] };
+}
+
+/* Namoz halqasi: 24 soat, tepada peshin, pastda yarim tun */
+function dial(H) {
+  const C = 160, R = 96;
+  const ang = m => ((m - 720) / 1440) * 2 * Math.PI;
+  const pt = (m, r) => [C + r * Math.sin(ang(m)), C - r * Math.cos(ang(m))];
+  const arc = (m1, m2, r = R) => {
+    const d = (((m2 - m1) % 1440) + 1440) % 1440 || 0.01;
+    const [x1, y1] = pt(m1, r), [x2, y2] = pt(m1 + d, r);
+    return `M${x1.toFixed(1)} ${y1.toFixed(1)}A${r} ${r} 0 ${d > 720 ? 1 : 0} 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+  };
+  const m = Object.fromEntries(Object.entries(H.times).map(([k, t]) => [k, dayMin(t)]));
+  const marks = ['bomdod', 'quyosh', 'peshin', 'asr', 'shom', 'xufton'].map(k => {
+    const [x, y] = pt(m[k], R), [ix, iy] = pt(m[k], R + 22), sx = Math.sin(ang(m[k])), cy = Math.cos(ang(m[k]));
+    // yozuv ikonkaning tashqi tomonida: chapda o'ngga, o'ngda chapga tekislanadi
+    const side = sx < -0.4 ? 'end' : sx > 0.4 ? 'start' : 'middle';
+    const lx = side === 'middle' ? ix : ix + (side === 'end' ? -12 : 12), ly = side === 'middle' ? iy - cy * 16 : iy;
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" class="d-tick"/>
+      <svg x="${(ix - 8).toFixed(1)}" y="${(iy - 8).toFixed(1)}" width="16" height="16" viewBox="0 0 24 24" class="d-ic ${k}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${P[PICON[k]]}</svg>
+      <text x="${lx.toFixed(1)}" y="${(ly + 3.5).toFixed(1)}" class="d-lb" text-anchor="${side}">${PN[k]}</text>`;
+  }).join('');
+  return `<div class="dialw"><svg viewBox="0 0 320 320" class="dial">
+      <circle cx="${C}" cy="${C}" r="${R}" class="d-base"/>
+      <path d="${arc(m.bomdod, m.shom)}" class="d-day"/>
+      <path d="${arc(m.shom, m.bomdod)}" class="d-night"/>
+      <path id="d-prog" class="d-prog"/>
+      ${marks}
+      <g id="d-now"><circle r="13" class="d-sun"/><svg x="-8" y="-8" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" class="d-sic" id="d-sic"></svg></g>
+    </svg>
+    <div class="dial-c"><div class="d-k" id="d-k"></div><div class="d-v num" id="d-v"></div><div class="d-a num" id="d-a"></div></div></div>`;
+}
+function dialTick(H, now) {
+  const C = 160, R = 96, nowM = dayMin(now), pn = prayerNow(H, now);
+  const ang = x => ((x - 720) / 1440) * 2 * Math.PI;
+  const pt = x => [C + R * Math.sin(ang(x)), C - R * Math.cos(ang(x))];
+  const [nx, ny] = pt(nowM);
+  const g = $('#d-now'); if (!g) return;
+  g.setAttribute('transform', `translate(${nx.toFixed(1)} ${ny.toFixed(1)})`);
+  const day = now >= H.times.quyosh && now < H.times.shom;
+  g.classList.toggle('night', !day);
+  $('#d-sic').innerHTML = P[day ? 'sun' : 'moon'];
+  const from = pn.cur ? dayMin(H.windows[pn.cur][0]) : dayMin(H.times.quyosh);
+  const d = (((nowM - from) % 1440) + 1440) % 1440;
+  const [x1, y1] = pt(from), [x2, y2] = pt(from + Math.max(d, 0.01));
+  $('#d-prog').setAttribute('d', `M${x1.toFixed(1)} ${y1.toFixed(1)}A${R} ${R} 0 ${d > 720 ? 1 : 0} 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`);
+  const left = Math.max(0, pn.nextAt - now), h = Math.floor(left / 3600e3), mi = Math.floor(left % 3600e3 / 60e3), s = Math.floor(left % 60e3 / 1e3);
+  $('#d-k').textContent = `Keyingi · ${PN[pn.next]}`;
+  $('#d-v').textContent = h ? `${h} s ${pad(mi)} daq` : `${mi}:${pad(s)}`;
+  $('#d-a').textContent = `${hhmm(pn.nextAt)} da`;
+  const hn = $('#d-cur'); if (hn) hn.textContent = pn.cur ? PN[pn.cur] : 'Quyosh chiqqan';
+}
+
+/* Oy kalendari: istalgan kunni tanlab, oldindan rejalash */
+function calendar(ym, ds, today, marks) {
+  const [y, m] = ym.split('-').map(Number);
+  const first = new Date(Date.UTC(y, m - 1, 1)), lead = (first.getUTCDay() + 6) % 7;
+  const cells = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(Date.UTC(y, m - 1, 1 - lead + i)), s = d.toISOString().slice(0, 10);
+    if (i >= 35 && s.slice(0, 7) !== ym) break;
+    const cls = [s.slice(0, 7) !== ym ? 'out' : '', s < today ? 'past' : '', s === today ? 'today' : '', s === ds ? 'sel' : '', marks[s] ? 'has' : ''].join(' ');
+    cells.push(`<button class="${cls}" data-d="${s}">${d.getUTCDate()}</button>`);
   }
-  if (!isPast) for (const g of plan.free) rows.push({ s: normMin(g.start) - 0.2, html: `<div class="gap" data-a="gap" data-s="${g.start}" data-e="${g.end}">${ic('plus').replace('<svg', '<svg width="14" height="14"')} Bo'sh vaqt ${g.start}–${g.end} (${mins(g.min)}) — ish qo'shish</div>` });
-  rows.push({ s: f.s + 1, html: `<div class="it marker"><span class="tm num">${plan.sleep}</span><span class="bar" style="background:var(--purple)"></span><span class="ti"><b>🌙 Uxlash</b>${plan.day.sleep_at ? ` <span class="chip green">${hhmm(plan.day.sleep_at)} da</span>` : ''}</span></div>` });
-  rows.sort((a, b) => a.s - b.s);
-  const tasksN = plan.items.filter(i => i.kind === 'task').length;
-  v.innerHTML = `<div class="page">
-    <div class="head"><h1>Reja</h1>
-      <div class="seg"><button data-d="${plan.today}" class="${isToday ? 'on' : ''}">Bugun</button><button data-d="${tomorrow}" class="${ds === tomorrow ? 'on' : ''}">Ertaga</button></div>
-      <input type="date" id="pd" value="${ds}" style="width:160px">
-      <span class="muted">${fmtDay(ds)} · ${hijri(ds)}</span><span class="grow"></span>
-      ${isFuture ? (plan.day.plan_ready ? `<span class="chip green">${ic('check').replace('<svg', '<svg width="12" height="12"')} Reja tasdiqlangan</span>` : `<button class="btn primary" data-a="ready">${ic('check')} Rejani tasdiqlash</button>`) : ''}
-    </div>
-    <div class="cols"><div>
-      ${isPast ? '<div class="card glass muted small">Bu o\'tgan kun — faqat ko\'rish mumkin. Batafsil tahlil «Tarix» bo\'limida.</div>' : ''}
-      <div class="tl">${rows.map(r => r.html).join('')}</div>
-      ${!tasksN && !isPast ? '<div class="empty">Hali ish qo\'shilmagan. O\'ngdagi oynadan yoki bo\'sh vaqt qatorini bosib qo\'shing.</div>' : ''}
-    </div><div>
-      ${isPast ? '' : `<div class="card glass" id="addcard"><h3>Ish qo'shish</h3>
-        <label class="f"><span>Nima qilasiz?</span><input type="text" id="a-title" maxlength="120" placeholder="Masalan: Ingliz tili — so'z yodlash"></label>
-        <div class="grid g2" style="gap:10px"><label class="f"><span>Boshlanishi</span><input type="time" id="a-s"></label><label class="f"><span>Tugashi</span><input type="time" id="a-e"></label></div>
-        <label class="f"><span>Yo'nalish</span><div class="chips" id="a-cat">${CATS.map(([k, n], i) => `<span class="chip pick ${i === 0 ? 'on' : ''}" data-c="${k}"><span class="dot" style="background:${CATC[k]}"></span>${n}</span>`).join('')}</div></label>
-        <label class="f"><span>Takrorlash</span><div class="seg" id="a-rep"><button data-r="once" class="on">Bir marta</button><button data-r="daily">Har kuni</button><button data-r="weekdays">Ish kunlari</button><button data-r="days">Kunlarni tanlash</button></div></label>
-        <div class="chips hidden" id="a-days" style="margin:-4px 0 12px">${[1, 2, 3, 4, 5, 6, 0].map(d => `<span class="chip pick" data-w="${d}">${WDS[d]}</span>`).join('')}</div>
-        <div class="err" id="a-err"></div>
-        <button class="btn primary" style="width:100%" data-a="add">${ic('plus')} Qo'shish</button>
-        <div class="faint small" style="margin-top:10px">Namoz vaqtlari qulflangan — u paytda faqat namoz. Ish uyg'onish (${plan.wake}) va uxlash (${plan.sleep}) oralig'ida bo'ladi.</div>
-      </div>`}
-      <div class="card glass"><h3>${ic('repeat').replace('<svg', '<svg width="15" height="15" style="vertical-align:-2px"')} Takrorlanadigan ishlar</h3>
-        ${plan.templates.length ? plan.templates.map(t => `<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line)">
-          <span class="dot" style="background:${CATC[t.category] || '#888'}"></span>
-          <span class="grow ${t.active ? '' : 'faint'}"><b>${esc(t.title)}</b><div class="faint small">${t.start}–${t.end} · ${t.days === 127 ? 'har kuni' : t.days_list.map(d => WDS[d]).join(', ')}</div></span>
-          <button class="btn sm" data-a="tpl-toggle" data-id="${t.id}" data-on="${t.active}">${t.active ? "O'chirish" : 'Yoqish'}</button>
-          <button class="ibtn" data-a="tpl-del" data-id="${t.id}" title="Butunlay o'chirish">${ic('trash')}</button></div>`).join('') : '<div class="muted small">Yo\'q. Ish qo\'shayotganda «Har kuni» ni tanlang.</div>'}
+  const mn = MONTHS[m - 1];
+  return `<div class="cal-h"><button class="ibtn" data-cm="-1" title="Oldingi oy">${ic('back')}</button><b>${mn[0].toUpperCase() + mn.slice(1)} ${y}</b><button class="ibtn" data-cm="1" title="Keyingi oy">${ic('next')}</button></div>
+    <div class="cal-g">${['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh', 'Ya'].map(w => `<span class="wd">${w}</span>`).join('')}${cells.join('')}</div>
+    ${ds !== today ? `<button class="btn ghost sm cal-back" data-d="${today}">${ic('back')} Bugunga qaytish</button>` : ''}`;
+}
+
+VIEWS.bugun = async (v, alive) => {
+  const H = await api('GET', '/api/home');
+  const today = H.date, ds = param('d') || today;
+  if (calFor !== ds) { calMonth = ds.slice(0, 7); calFor = ds; }
+  const [plan, marks] = await Promise.all([api('GET', `/api/plan?date=${ds}`), api('GET', `/api/plan/month?m=${calMonth}`)]);
+  if (!alive()) return;
+  const isToday = ds === today, isPast = ds < today;
+  const nowM = normMin(hhmm(Date.now()));
+  const pn = prayerNow(H);
+  const city = ((S.config && S.config.cities) || []).find(c => c.id === S.me.city);
+  PL = { ds, plan, isToday, isPast, nowM };
+
+  const prayers = plan.items.filter(i => i.kind === 'prayer'), tasks = plan.items.filter(i => i.kind === 'task' || i.kind === 'meal');
+  const prayerRow = it => {
+    const st = plan.prayers[it.prayer], can = isToday && !st && nowM >= it.s;
+    const now = isToday && pn.cur === it.prayer && !st;
+    return `<div class="pl-row pr ${now ? 'now' : ''}">
+      <button class="pl-chk ${st === 'vaqtida' ? 'ok' : st === 'qazo' ? 'qazo' : ''}" data-a="pray" data-p="${it.prayer}" ${can ? `title="O'qidim"` : 'disabled'}>${st === 'vaqtida' ? ic('check') : st === 'qazo' ? ic('x') : ''}</button>
+      <span class="pl-ic">${ic(PICON[it.prayer])}</span><b class="pl-name">${PN[it.prayer]}</b><span class="pl-time num">${it.start}</span><span class="grow"></span>
+      ${now ? '<span class="pl-now"><i></i>HOZIR</span>' : st === 'qazo' ? '<span class="chip red">Qazo</span>' : st === 'vaqtida' ? `<span class="chip green">O'qildi</span>` : ''}</div>`;
+  };
+  const taskRow = t => {
+    const tick = isToday && (t.status === 'planned' || t.status === 'active');
+    const st = { active: '<span class="chip blue">Davom etmoqda</span>', missed: `<span class="chip red">O'tkazildi</span>` }[t.status] || '';
+    const real = t.actual_start ? ` · haqiqatda ${hhmm(t.actual_start)}${t.late ? ` (+${t.late} daq)` : ''}` : '';
+    return `<div class="pl-row tk ${t.status}" data-a="open" data-id="${t.id}">
+      <button class="pl-box ${t.status}" data-a="tick" data-id="${t.id}" ${tick ? `title="${t.status === 'planned' ? 'Boshlash' : 'Tugatish'}"` : 'disabled'}>${t.status === 'done' ? ic('check') : t.status === 'missed' ? ic('x') : ''}</button>
+      <div class="grow pl-tt"><b>${esc(t.title)}</b><div class="pl-meta num"><i style="background:${CATC[t.category] || '#888'}"></i>${t.start} · ${hm(t.planned_min)} · ${esc(t.category_name)}${real}</div></div>
+      ${st}${t.rating ? `<span class="pl-stars">${'★'.repeat(t.rating)}</span>` : t.status === 'done' && isToday ? `<button class="btn sm" data-a="rate" data-id="${t.id}">Baholash</button>` : ''}</div>`;
+  };
+  let rows = tasks.filter(t => t.s < prayers[0].s).map(taskRow).join('');
+  prayers.forEach((p, i) => {
+    const end = i + 1 < prayers.length ? prayers[i + 1].s : Infinity;
+    rows += prayerRow(p) + tasks.filter(t => t.s >= p.s && t.s < end).map(taskRow).join('');
+    if (!isPast) rows += `<button class="pl-add" data-a="add" data-after="${p.prayer}">${ic('plus')} ${AFTER[p.prayer]} qo'shish</button>`;
+  });
+  const d = pd(ds);
+  v.innerHTML = `<div class="pl">
+    <div class="pl-head"><div><div class="pl-eye">${hijri(ds)}${city ? ' · ' + esc(city.name) : ''}</div>
+      <h1>${dayTitle(ds, today)} <span>${d.getUTCDate()}-${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}${dayTitle(ds, today) === WD[d.getUTCDay()] ? '' : ', ' + WD[d.getUTCDay()]}</span></h1></div>
+      <span class="grow"></span>
+      ${isPast ? `<span class="chip">O'tgan kun — faqat ko'rish</span>` : `<button class="btn primary" data-a="add">${ic('plus')} Qo'shish <kbd>Ctrl K</kbd></button>`}</div>
+    <div class="pl-cols">
+      <div class="pl-list">${rows}${!tasks.length && !isPast ? `<div class="pl-hint">${ic('bell')} Ishlaringizni namozlar orasiga qo'shing — vaqti kelganda @${esc((S.config && S.config.bot_username) || 'islohuzbot')} xabar beradi.</div>` : ''}</div>
+      <div class="pl-side">
+        <div class="card glass nowc"><div class="nowc-h"><span class="muted">Hozir</span><b id="d-cur"></b></div>${dial(H)}</div>
+        <div class="card glass cal">${calendar(calMonth, ds, today, marks)}</div>
       </div>
-    </div></div></div>`;
-  let cat = 'ilm', rep = 'once';
-  const go = d => { location.hash = `#/reja?d=${d}`; };
-  v.onchange = e => { if (e.target.id === 'pd' && e.target.value) go(e.target.value); };
-  v.onkeydown = e => { if (e.key === 'Enter' && e.target.id === 'a-title') $('[data-a="add"]').click(); };
+    </div></div>`;
+  dialTick(H, Date.now());
+  let lastSec = 0;
+  tickFns.push(now => {
+    const s = Math.floor(now / 1000);
+    if (s === lastSec) return;
+    lastSec = s;
+    dialTick(H, now);
+    const p = prayerNow(H, now);
+    if (p.cur !== pn.cur) refresh(); // namoz vaqti kirdi yoki tugadi
+  });
   v.onclick = async e => {
-    const d = e.target.closest('.seg [data-d]'); if (d) return go(d.dataset.d);
-    const c = e.target.closest('#a-cat .chip'); if (c) { cat = c.dataset.c; $$('#a-cat .chip').forEach(x => x.classList.toggle('on', x === c)); return; }
-    const r = e.target.closest('#a-rep button'); if (r) { rep = r.dataset.r; $$('#a-rep button').forEach(x => x.classList.toggle('on', x === r)); $('#a-days').classList.toggle('hidden', rep !== 'days'); return; }
-    const w = e.target.closest('#a-days .chip'); if (w) { w.classList.toggle('on'); return; }
+    const cm = e.target.closest('[data-cm]');
+    if (cm) {
+      const [y, m] = calMonth.split('-').map(Number), n = new Date(Date.UTC(y, m - 1 + +cm.dataset.cm, 1));
+      calMonth = n.toISOString().slice(0, 7);
+      const mk = await api('GET', `/api/plan/month?m=${calMonth}`);
+      if (alive()) $('.cal', v).innerHTML = calendar(calMonth, ds, today, mk);
+      return;
+    }
+    const day = e.target.closest('[data-d]');
+    if (day) { location.hash = day.dataset.d === today ? '#/bugun' : `#/bugun?d=${day.dataset.d}`; return; }
     const b = e.target.closest('[data-a]');
-    if (!b) return;
-    const a = b.dataset.a, id = b.dataset.id;
+    if (!b || b.disabled) return;
+    const a = b.dataset.a, id = +b.dataset.id, t = tasks.find(x => x.id === id);
     try {
-      if (a === 'gap') {
-        $('#a-s').value = b.dataset.s;
-        $('#a-e').value = fmtMin(Math.min(normMin(b.dataset.e), normMin(b.dataset.s) + 60));
-        $('#a-title').focus(); $('#addcard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        return;
-      }
-      if (a === 'add') {
-        const body = { date: ds, title: $('#a-title').value, start: $('#a-s').value, end: $('#a-e').value, category: cat,
-          repeat: { type: rep, days: $$('#a-days .chip.on').map(x => +x.dataset.w) } };
-        if (!body.title.trim()) { $('#a-err').textContent = 'Ish nomini yozing'; return; }
-        if (!body.start || !body.end) { $('#a-err').textContent = 'Vaqtni kiriting'; return; }
-        try { await api('POST', '/api/tasks', body); toast("Qo'shildi"); refresh(); } catch (err) { $('#a-err').textContent = err.message; }
-        return;
-      }
+      if (a === 'add') return quickAdd(PL, b.dataset.after);
       if (a === 'pray') { await api('POST', '/api/prayers', { date: ds, prayer: b.dataset.p }); toast('Alloh qabul qilsin!'); }
-      if (a === 'start') { const t = await api('POST', `/api/tasks/${id}/start`); toast(t.late ? `Boshlandi — ${t.late} daqiqa kech` : "Boshlandi — o'z vaqtida"); }
-      if (a === 'finish') { const t = await api('POST', `/api/tasks/${id}/finish`); rateModal(t); }
-      if (a === 'rate') { const t = plan.items.find(x => x.id === +id); return rateModal(t); }
-      if (a === 'del') { if (!(await confirmBox("Ishni o'chirish", 'Bu ish shu kundan o\'chiriladi.', "O'chirish", true))) return; await api('DELETE', `/api/tasks/${id}`); }
-      if (a === 'edit') return editTask(plan.items.find(x => x.id === +id));
-      if (a === 'ready') { await api('POST', '/api/plan/ready', { date: ds, ready: true }); toast('Reja tasdiqlandi. Ertaga omad!'); }
-      if (a === 'tpl-toggle') await api('PATCH', `/api/templates/${id}`, { active: b.dataset.on !== '1' });
-      if (a === 'tpl-del') { if (!(await confirmBox("Takrorlanuvchi ishni o'chirish", "Kelgusi kunlardan ham olib tashlanadi. Bugungi va o'tgan kunlar saqlanadi.", "O'chirish", true))) return; await api('DELETE', `/api/templates/${id}`); }
+      if (a === 'tick' && t.status === 'planned') { const r = await api('POST', `/api/tasks/${id}/start`); toast(r.late ? `Boshlandi — ${r.late} daqiqa kech` : "Boshlandi — o'z vaqtida"); }
+      if (a === 'tick' && t.status === 'active') { const r = await api('POST', `/api/tasks/${id}/finish`); refresh(); return rateModal(r); }
+      if (a === 'rate') return rateModal(t);
+      if (a === 'open') { if (t.status === 'planned' && !isPast) return taskSheet(PL, t); return; }
       refresh();
-    } catch (err) { fail(err); }
+    } catch (err) { fail(err); refresh(); }
   };
 };
-function editTask(t) {
-  const m = modal(`<h2>Ishni tahrirlash</h2>
-    <label class="f"><span>Nomi</span><input type="text" id="e-t" value="${esc(t.title)}" maxlength="120"></label>
-    <div class="grid g2" style="gap:10px"><label class="f"><span>Boshlanishi</span><input type="time" id="e-s" value="${t.start}"></label><label class="f"><span>Tugashi</span><input type="time" id="e-e" value="${t.end}"></label></div>
-    <div class="err" id="e-err"></div><div class="foot"><button class="btn" data-x="c">Bekor</button><button class="btn primary" data-x="ok">Saqlash</button></div>`);
-  m.el.addEventListener('click', async e => {
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && route() === 'bugun' && PL && !PL.isPast && !$('.modal-bg')) { e.preventDefault(); quickAdd(PL); }
+});
+
+/* Matndan vaqt, davomiylik, namoz va yo'nalishni ajratib olish: "Ingliz tili 19:00 45daq", "kitob shomdan keyin 1 soat #ilm" */
+function parseQuick(text) {
+  let s = ` ${text} `, after = null, start = null, dur = null, cat = null;
+  s = s.replace(/\s(bomdod|peshin|asr|shom|xufton)(?:dan|din)?\s+keyin(?=\s)/i, (m, p) => { after = p.toLowerCase(); return ' '; });
+  s = s.replace(/\s([01]?\d|2[0-3])[:.]([0-5]\d)(?=\s)/, (m, h, mm) => { start = `${pad(h)}:${mm}`; return ' '; });
+  s = s.replace(/\s(\d+(?:[.,]5)?)\s*(soat|s|h)(?=\s)/i, (m, n) => { dur = Math.round(parseFloat(n.replace(',', '.')) * 60); return ' '; });
+  s = s.replace(/\s(\d{1,3})\s*(daqiqa|daq|min|m)(?=\s)/i, (m, n) => { dur = (dur || 0) + +n; return ' '; });
+  s = s.replace(/\s#([\p{L}']+)(?=\s)/u, (m, c) => {
+    const k = CATS.find(([key, name]) => key === c.toLowerCase() || name.toLowerCase() === c.toLowerCase());
+    if (!k) return m;
+    cat = k[0]; return ' ';
+  });
+  return { title: s.replace(/\s+/g, ' ').trim(), after, start, dur, cat };
+}
+/* Bo'sh joy: berilgan daqiqadan boshlab, namoz va boshqa ishlarga tegmaydigan birinchi oraliq */
+function freeAt(plan, from, len, skip) {
+  let s = Math.ceil(from / 5) * 5;
+  for (let g = 0; g < 60; g++) {
+    const hit = plan.items.find(i => i.id !== skip && s < i.e && s + len > i.s);
+    if (!hit) break;
+    s = Math.ceil(hit.e / 5) * 5;
+  }
+  return s;
+}
+function quickAdd(ctx, preAfter) {
+  const { plan, ds, isToday, nowM } = ctx;
+  const slotEnd = p => (plan.items.find(i => i.kind === 'prayer' && i.prayer === p) || {}).e;
+  let cat = 'ilm';
+  const m = modal(`<div class="qa"><div class="qa-k"><span>TEZKOR QO'SHISH</span><span>${dayTitle(ds, plan.today)} · ${fmtDay(ds).split(', ')[1]}</span></div>
+      <input type="text" id="qa-in" maxlength="160" autocomplete="off" placeholder="Nima qilasiz? Masalan: Ingliz tili 19:00 45daq" autofocus>
+      <div class="chips qa-chips" id="qa-ch"></div>
+      <div class="chips qa-cat" id="qa-cat">${CATS.map(([k, n]) => `<span class="chip pick sm ${k === cat ? 'on' : ''}" data-c="${k}"><span class="dot" style="background:${CATC[k]}"></span>${n}</span>`).join('')}</div>
+      <div class="err" id="qa-err"></div>
+      <div class="foot"><button class="btn" data-x="more">Batafsil</button><button class="btn primary" data-x="ok">Saqlash <kbd>↵</kbd></button></div></div>`);
+  const inp = $('#qa-in', m.el);
+  const calc = () => {
+    const q = parseQuick(inp.value), after = q.after || preAfter || null, len = q.dur || 30;
+    let s;
+    if (q.start) s = normMin(q.start);
+    else s = freeAt(plan, after ? slotEnd(after) : isToday ? Math.max(nowM + 5, toMin(plan.wake)) : slotEnd('bomdod'), len);
+    if (q.cat) cat = q.cat;
+    return { ...q, after, len, s, start: fmtMin(s), end: fmtMin(s + len) };
+  };
+  const paint = () => {
+    const q = calc();
+    $('#qa-ch', m.el).innerHTML = `${q.after ? `<span class="chip blue">${ic(PICON[q.after])} ${AFTER[q.after]}</span>` : ''}<span class="chip">${ic('clock')} ${q.start}–${q.end}</span><span class="chip">${hm(q.len)}</span>`;
+    $$('#qa-cat .chip', m.el).forEach(c => c.classList.toggle('on', c.dataset.c === cat));
+    $('#qa-err', m.el).textContent = '';
+  };
+  paint();
+  inp.addEventListener('input', paint);
+  const save = async () => {
+    const q = calc();
+    if (!q.title) { $('#qa-err', m.el).textContent = 'Ish nomini yozing'; inp.focus(); return; }
+    try {
+      await api('POST', '/api/tasks', { date: ds, title: q.title, start: q.start, end: q.end, category: cat });
+      m.close(); toast(`Qo'shildi: ${q.start}`); refresh();
+    } catch (err) { $('#qa-err', m.el).textContent = err.message; }
+  };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
+  m.el.addEventListener('click', e => {
+    const c = e.target.closest('[data-c]'); if (c) { cat = c.dataset.c; paint(); inp.focus(); return; }
+    const x = e.target.closest('[data-x]'); if (!x) return;
+    if (x.dataset.x === 'ok') return save();
+    const q = calc();
+    m.close();
+    taskSheet(ctx, null, { title: q.title, start: q.start, end: q.end, category: cat });
+  });
+}
+/* Batafsil: yangi ish yoki mavjud ishni tahrirlash */
+function taskSheet(ctx, t, pre = {}) {
+  const v0 = t || pre;
+  let cat = v0.category || 'ilm';
+  const lead = S.me.task_lead ?? 5;
+  const m = modal(`<h2>${t ? 'Ishni tahrirlash' : 'Yangi ish'}</h2><p class="muted small" style="margin:0 0 14px">${dayTitle(ctx.ds, ctx.plan.today)}, ${fmtDate(ctx.ds)}</p>
+    <label class="f"><span>Nomi</span><input type="text" id="e-t" value="${esc(v0.title || '')}" maxlength="120" placeholder="Masalan: Ingliz tili — so'z yodlash" autofocus></label>
+    <div class="grid g2" style="gap:10px"><label class="f"><span>Boshlanishi</span><input type="time" id="e-s" value="${v0.start || ''}"></label><label class="f"><span>Tugashi</span><input type="time" id="e-e" value="${v0.end || ''}"></label></div>
+    <div class="chips" id="e-d" style="margin:-2px 0 14px">${DURS.map(n => `<span class="chip pick sm" data-n="${n}">${hm(n)}</span>`).join('')}</div>
+    <label class="f"><span>Yo'nalish</span><div class="chips" id="e-c">${CATS.map(([k, n]) => `<span class="chip pick sm ${k === cat ? 'on' : ''}" data-c="${k}"><span class="dot" style="background:${CATC[k]}"></span>${n}</span>`).join('')}</div></label>
+    <div class="pl-note">${ic('bell')} Boshlanishidan ${lead ? lead + ' daqiqa oldin' : 'vaqtida'} Telegram bot xabar beradi: «Boshlash» va «Tugatish».</div>
+    <div class="err" id="e-err"></div>
+    <div class="foot">${t ? `<button class="btn red" data-x="del" style="margin-right:auto">${ic('trash')} O'chirish</button>` : ''}<button class="btn" data-x="c">Bekor</button><button class="btn primary" data-x="ok">Saqlash</button></div>`);
+  const el = m.el, sIn = $('#e-s', el), eIn = $('#e-e', el);
+  const durNow = () => (sIn.value && eIn.value ? normMin(eIn.value) - normMin(sIn.value) : 0);
+  const paint = () => $$('#e-d .chip', el).forEach(c => c.classList.toggle('on', +c.dataset.n === durNow()));
+  let dur = durNow() || 30;
+  sIn.addEventListener('change', () => { if (sIn.value) eIn.value = fmtMin(normMin(sIn.value) + dur); paint(); });
+  eIn.addEventListener('change', () => { dur = durNow() || dur; paint(); });
+  paint();
+  const save = async () => {
+    const body = { title: $('#e-t', el).value, start: sIn.value, end: eIn.value, category: cat };
+    if (!body.title.trim()) { $('#e-err', el).textContent = 'Ish nomini yozing'; return; }
+    if (!body.start || !body.end) { $('#e-err', el).textContent = 'Vaqtni kiriting'; return; }
+    try {
+      if (t) await api('PATCH', `/api/tasks/${t.id}`, body);
+      else await api('POST', '/api/tasks', { ...body, date: ctx.ds });
+      m.close(); toast(t ? 'Saqlandi' : `Qo'shildi: ${body.start}`); refresh();
+    } catch (err) { $('#e-err', el).textContent = err.message; }
+  };
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'e-t') save(); });
+  el.addEventListener('click', async e => {
+    const d = e.target.closest('#e-d [data-n]');
+    if (d) { dur = +d.dataset.n; if (!sIn.value) sIn.value = fmtMin(freeAt(ctx.plan, ctx.isToday ? ctx.nowM + 5 : toMin(ctx.plan.wake), dur, t && t.id)); eIn.value = fmtMin(normMin(sIn.value) + dur); paint(); return; }
+    const c = e.target.closest('#e-c [data-c]');
+    if (c) { cat = c.dataset.c; $$('#e-c .chip', el).forEach(x => x.classList.toggle('on', x === c)); return; }
     const x = e.target.closest('[data-x]'); if (!x) return;
     if (x.dataset.x === 'c') return m.close();
-    try { await api('PATCH', `/api/tasks/${t.id}`, { title: $('#e-t', m.el).value, start: $('#e-s', m.el).value, end: $('#e-e', m.el).value }); m.close(); refresh(); } catch (err) { $('#e-err', m.el).textContent = err.message; }
+    if (x.dataset.x === 'ok') return save();
+    if (x.dataset.x === 'del') {
+      m.close();
+      if (!(await confirmBox("Ishni o'chirish", `«${t.title}» bu kundan o'chiriladi.`, "O'chirish", true))) return;
+      try { await api('DELETE', `/api/tasks/${t.id}`); toast("O'chirildi"); refresh(); } catch (err) { fail(err); }
+    }
   });
 }
 
