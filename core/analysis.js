@@ -147,48 +147,6 @@ function create(db, core) {
     return out;
   }
 
-  const MONTH_RX = T.MONTHS.map((m, i) => [m, i + 1]);
-  function history(u, q = '', limit = 20, offset = 0) {
-    const today = core.activeDate(u);
-    const start = core.activeDate(u, u.created_at || Date.now());
-    let dates = [];
-    q = String(q || '').trim().toLowerCase();
-    const all = [];
-    for (let ds = today; ds >= start; ds = T.addDays(ds, -1)) all.push(ds);
-    if (!q) dates = all;
-    else {
-      let m;
-      if ((m = q.match(/^(\d{4})-(\d{2})-(\d{2})$/))) dates = all.filter(d => d === q);
-      else if ((m = q.match(/^(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?$/))) {
-        const dd = m[1].padStart(2, '0'), mm = m[2].padStart(2, '0'), yy = m[3] ? (m[3].length === 2 ? '20' + m[3] : m[3]) : null;
-        dates = all.filter(d => d.slice(8) === dd && d.slice(5, 7) === mm && (!yy || d.slice(0, 4) === yy));
-      } else {
-        const mon = MONTH_RX.find(([name]) => q.startsWith(name.slice(0, 3)) && name.startsWith(q.split(' ')[0]));
-        const like = `%${q}%`;
-        const hits = new Set(db.all('SELECT DISTINCT date FROM tasks WHERE user_id=? AND (lower(title) LIKE ? OR lower(note) LIKE ?)', u.id, like, like).map(r => r.date));
-        for (const r of db.all('SELECT date FROM days WHERE user_id=? AND lower(note) LIKE ?', u.id, like)) hits.add(r.date);
-        dates = all.filter(d => hits.has(d) || (mon && +d.slice(5, 7) === mon[1]) || T.fmtDay(d).toLowerCase().includes(q));
-      }
-    }
-    const page = dates.slice(offset, offset + limit);
-    const items = page.map(ds => {
-      const a = dayAnalysis(u, ds);
-      return { date: ds, title: a.title, is_today: a.is_today, score: a.score, level: a.level, level_name: a.level_name, stats: a.stats,
-        prayers: Object.fromEntries(T.BLOCKS.map(p => [p, a.prayers[p].status])), sleep: a.sleep, top: a.tasks.slice(0, 4).map(t => ({ title: t.title, status: t.status })) };
-    });
-    return { total: dates.length, offset, items };
-  }
-
-  function trends(u, n = 30) {
-    const today = core.activeDate(u);
-    return bulk(u, T.addDays(today, -(n - 1)), today).map(a => ({
-      date: a.date, score: a.score, level: a.level,
-      done: a.stats ? a.stats.done : null, planned: a.stats ? a.stats.planned : null,
-      late_avg: a.stats ? a.stats.late_avg : null, prayers: a.stats ? a.stats.prayers_ok : null, prayers_counted: a.stats ? a.stats.prayers_counted : null,
-      sleep_hours: a.sleep ? a.sleep.hours : null, actual_min: a.stats ? a.stats.actual_min : null,
-    }));
-  }
-
   function profile(u) {
     const today = core.activeDate(u);
     let from = T.addDays(today, -370);
@@ -220,7 +178,7 @@ function create(db, core) {
     };
   }
 
-  return { dayAnalysis, history, trends, profile, bulk, taskMetrics, LEVEL_NAMES };
+  return { dayAnalysis, profile, bulk, taskMetrics, LEVEL_NAMES };
 }
 
 module.exports = { create, LEVEL_NAMES };

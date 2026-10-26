@@ -114,6 +114,16 @@ CREATE INDEX IF NOT EXISTS videos_pub ON videos(published DESC);
 CREATE TABLE IF NOT EXISTS watched (
   user_id INTEGER, video_id TEXT, at INTEGER, PRIMARY KEY (user_id, video_id)
 );
+CREATE TABLE IF NOT EXISTS reminders (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  at INTEGER NOT NULL,
+  created_at INTEGER,
+  sent_at INTEGER,
+  done_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS reminders_due ON reminders(user_id, sent_at, at);
 CREATE TABLE IF NOT EXISTS books (
   id INTEGER PRIMARY KEY,
   user_id INTEGER NOT NULL,

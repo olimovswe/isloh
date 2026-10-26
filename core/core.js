@@ -372,6 +372,51 @@ function create(db, bus = { emit() {} }) {
     return dayRow(u, ds);
   }
 
+  /* ------------------------------------------------------------ eslatmalar: matn va vaqt — o'sha vaqtda bot xabar beradi */
+  const remRow = (u, r) => ({ ...r, date: T.tzNow(u.tz, r.at).date, time: T.hhmmAt(r.at, u.tz) });
+  function getReminder(u, id) {
+    const r = db.get('SELECT * FROM reminders WHERE id=? AND user_id=?', id, u.id);
+    if (!r) throw new ApiError(404, 'Eslatma topilmadi');
+    return r;
+  }
+  function remAt(u, b) {
+    if (!T.validDate(b.date) || !T.validTime(b.time)) throw new ApiError(400, 'Kun va vaqtni tanlang');
+    const at = T.instant(b.date, T.toMin(b.time), u.tz);
+    if (at <= now()) throw new ApiError(400, `${b.time} o'tib ketgan — keyingi vaqtni tanlang`);
+    return at;
+  }
+  function reminders(u) {
+    const all = db.all('SELECT * FROM reminders WHERE user_id=? ORDER BY at', u.id).map(r => remRow(u, r));
+    return { upcoming: all.filter(r => !r.sent_at && !r.done_at), past: all.filter(r => r.sent_at || r.done_at).sort((a, b) => (b.sent_at || b.done_at) - (a.sent_at || a.done_at)).slice(0, 50) };
+  }
+  function reminderCreate(u, b) {
+    const text = str(b.text, 300);
+    if (!text) throw new ApiError(400, 'Nimani eslatishni yozing');
+    const id = db.run('INSERT INTO reminders (user_id,text,at,created_at) VALUES (?,?,?,?)', u.id, text, remAt(u, b), now()).lastInsertRowid;
+    bus.emit(u.id, { type: 'refresh' });
+    return remRow(u, getReminder(u, id));
+  }
+  function reminderUpdate(u, id, b) {
+    const r = getReminder(u, id), f = {};
+    if ('text' in b) { f.text = str(b.text, 300); if (!f.text) throw new ApiError(400, 'Nimani eslatishni yozing'); }
+    if ('date' in b || 'time' in b) { f.at = remAt(u, b); f.sent_at = null; f.done_at = null; } // yangi vaqt — qaytadan eslatiladi
+    if ('done' in b) f.done_at = b.done ? (r.done_at || now()) : null;
+    const keys = Object.keys(f);
+    if (keys.length) db.run(`UPDATE reminders SET ${keys.map(k => k + '=?').join(',')} WHERE id=?`, ...keys.map(k => f[k]), id);
+    bus.emit(u.id, { type: 'refresh' });
+    return remRow(u, getReminder(u, id));
+  }
+  function reminderDelete(u, id) {
+    db.run('DELETE FROM reminders WHERE id=? AND user_id=?', id, u.id);
+    bus.emit(u.id, { type: 'refresh' });
+    return { ok: true };
+  }
+  function remindersClear(u) {
+    db.run('DELETE FROM reminders WHERE user_id=? AND (sent_at IS NOT NULL OR done_at IS NOT NULL)', u.id);
+    bus.emit(u.id, { type: 'refresh' });
+    return { ok: true };
+  }
+
   /* ------------------------------------------------------------ bosh sahifa */
   function home(u) {
     const ds = activeDate(u);
@@ -387,7 +432,7 @@ function create(db, bus = { emit() {} }) {
 
   return { ApiError, CATS, userById, userByTg, publicUser, registerContact, newCode, verifyCode, createSession, registeredChats, auth, logout, updateMe,
     activeDate, prayerSlots, planGet, taskCreate, taskUpdate, taskDelete, taskStart, taskFinish, taskRate, getTask, taskRow, tasksOf,
-    planReady, planMonth, templatesList, templateUpdate, templateDelete, prayersOf, prayerMark, prayerAutoQazo, wake, sleep, dayRow, setDay,
+    planReady, planMonth, reminders, reminderCreate, reminderUpdate, reminderDelete, remindersClear, templatesList, templateUpdate, templateDelete, prayersOf, prayerMark, prayerAutoQazo, wake, sleep, dayRow, setDay,
     materialize, home, span };
 }
 

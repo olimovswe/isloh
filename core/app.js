@@ -3,7 +3,6 @@
    Hech qanday veb-server yoki port ochilmaydi: interfeys bu modul bilan to'g'ridan-to'g'ri (IPC orqali) gaplashadi. */
 const fs = require('fs');
 const Prayer = require('./prayer');
-const T = require('./time');
 
 function loadEnv(file) {
   const env = {};
@@ -53,9 +52,11 @@ function create({ dataDir, envFile, log = console.log, onEvent = () => {} }) {
   route('POST', '/api/tasks/(\\d+)/rate', ({ user, m, body }) => core.taskRate(user, int(m[1]), body.rating, body.note));
   route('POST', '/api/wake', ({ user, body }) => core.wake(user, body.date || core.activeDate(user)));
   route('POST', '/api/sleep', ({ user, body }) => core.sleep(user, body.date || core.activeDate(user)));
-  route('GET', '/api/history', ({ user, q }) => analysis.history(user, q.get('q') || '', 20, int(q.get('offset')) || 0));
-  route('GET', '/api/day/(\\d{4}-\\d{2}-\\d{2})', ({ user, m }) => analysis.dayAnalysis(user, m[1]));
-  route('GET', '/api/trends', ({ user, q }) => analysis.trends(user, Math.min(90, int(q.get('n')) || 30)));
+  route('GET', '/api/reminders', ({ user }) => core.reminders(user));
+  route('POST', '/api/reminders', ({ user, body }) => core.reminderCreate(user, body));
+  route('PATCH', '/api/reminders/(\\d+)', ({ user, m, body }) => core.reminderUpdate(user, int(m[1]), body));
+  route('DELETE', '/api/reminders/(\\d+)', ({ user, m }) => core.reminderDelete(user, int(m[1])));
+  route('DELETE', '/api/reminders', ({ user }) => core.remindersClear(user));
   route('GET', '/api/profile', ({ user }) => analysis.profile(user));
   route('GET', '/api/feed', ({ user, q }) => feeds.feed(user, { channel: q.get('channel'), before: q.get('before'), q: q.get('q') }));
   route('POST', '/api/channels', async ({ user, body }) => {
@@ -100,15 +101,6 @@ function create({ dataDir, envFile, log = console.log, onEvent = () => {} }) {
     }
   }
 
-  /* Kunlik hisobot PDF (bugun + ertangi reja) */
-  function reportPdf(date, token) {
-    const user = core.auth(token);
-    if (!user) throw new Error('Kirish kerak');
-    const a = analysis.dayAnalysis(user, date);
-    const tm = T.addDays(date, 1);
-    return report(user, a, { date: tm, items: core.planGet(user, tm).items });
-  }
-
   let feedTimer = null;
   function start() {
     log(`Isloh ishga tushdi (ma'lumotlar: ${dataDir})`);
@@ -123,7 +115,7 @@ function create({ dataDir, envFile, log = console.log, onEvent = () => {} }) {
     clearInterval(feedTimer);
   }
 
-  return { handle, reportPdf, start, stop, db, core, botReady: !!bot };
+  return { handle, start, stop, db, core, botReady: !!bot };
 }
 
 module.exports = { create, loadEnv };

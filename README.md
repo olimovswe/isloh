@@ -26,8 +26,8 @@ Shu kompyuterdagi desktop dastur. Ro'yxatdan o'tish va barcha xabarlar Telegram 
  Kompyuter (shu laptop)                                   Telegram
 ┌──────────────────────────────────────────────┐         ┌────────────────────────────┐
 │ Isloh — desktop dastur                        │         │ @islohuzbot                 │
-│  oyna: Bosh sahifa · Bugun · Tarix · Ilm ·    │         │  • ro'yxatdan o'tish + kod  │
-│        Profil                                 │         │  • barcha eslatmalar        │
+│  oyna: Bosh sahifa · Bugun · Eslatmalar ·     │         │  • ro'yxatdan o'tish + kod  │
+│        Ilm · Profil                           │         │  • barcha eslatmalar        │
 │  ichida: bot · eslatmalar jadvali · tahlil ·  ├────────►│  • Boshlash/Tugatish/Baho   │
 │          PDF · SQLite baza                    │         │  • O'qidim/Turdim/Uxladim   │
 │  oyna yopilsa trayda ishlashda davom etadi    │         │  • har kecha PDF hisobot    │
@@ -49,7 +49,7 @@ Shu kompyuterdagi desktop dastur. Ro'yxatdan o'tish va barcha xabarlar Telegram 
 |---|---|
 | **Bosh sahifa** | Katta soat (soat, daqiqa, soniya va undan kichik raqamlar), sana, hijriy sana. Chapda bugungi namozlar: hozirgisi katta va yorqin, qolganlari xira. Hozirgi ish va «O'qidim» tugmasi. |
 | **Bugun** | Istalgan kun rejasi (bugun, ertaga, indinga — kalendardan tanlanadi). Besh vaqt namoz ro'yxati: hozirgisi «HOZIR» bilan belgilanadi, o'qilganda doirachani bosasiz. Har namoz ostida «+ … dan keyin qo'shish». Tezkor qo'shish (**Ctrl K**): «Ingliz tili 19:00 45daq #ilm» kabi yozsangiz vaqt, davomiylik va yo'nalish o'zi ajratiladi; «Batafsil» — to'liq shakl. O'ngda namoz halqasi (keyingi namozgacha qolgan vaqt) va oy kalendari. Ish vaqti kelganda bot xabar beradi. |
-| **Tarix** | 30 kunlik ko'rsatkichlar va grafik. Qidiruv: sana, oy yoki ish nomi. Har kun: ball, reja va haqiqat chizmasi, ishlar jadvali, namozlar, uyqu, xulosalar, PDF. |
+| **Eslatmalar** | Nimani eslatishni yozasiz, kun (Bugun/Ertaga yoki sana) va vaqtni tanlaysiz — aynan o'sha vaqtda bot «🔔 Eslatma» yuboradi (uyqu paytida ham). Matnga «18:30» yozsangiz vaqt o'zi qo'yiladi; tezkor tugmalar: 15 daqiqadan keyin, 1 soatdan keyin, Bugun 21:00, Ertaga 08:00. Yuborilganlarni qayta eslatish yoki o'chirish mumkin. |
 | **Ilm** | YouTube podkastlari (kanallardan avtomatik yig'iladi, kanal qo'shish mumkin) va kitoblar. |
 | **Profil** | Telegram ma'lumotlari (ism, @username, telefon), yosh. Faollik jadvali (GitHub uslubida) va namozlar jadvali. Sozlamalar: eslatma vaqti, turish va uxlash vaqti, reja eslatmasi, shahar, qorong'i yoki yorug' mavzu. |
 
@@ -61,7 +61,8 @@ Shu kompyuterdagi desktop dastur. Ro'yxatdan o'tish va barcha xabarlar Telegram 
 | Ishdan oldin | **[Boshlash]** → **[Tugatish]** → 1–5 ⭐ baho |
 | 21:30 | «Ertangi kun rejasini tuzing» (ertaga uchun hali ish qo'shilmagan bo'lsa) |
 | Uxlashdan 5 daqiqa oldin | bugungi kun **PDF hisoboti** |
-| Uxlash vaqti | **[Uxladim]** — uyg'onguncha bezovta qilinmaydi |
+| Uxlash vaqti | **[Uxladim]** — uyg'onguncha bezovta qilinmaydi (o'zingiz qo'ygan eslatmalardan tashqari) |
+| Siz qo'ygan vaqt | **🔔 Eslatma** — matningiz bilan |
 
 ### Tahlil algoritmi
 - **Ish balli** = 0,3·P + 0,4·C + 0,3·Q:

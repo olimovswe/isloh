@@ -38,16 +38,6 @@ const isloh = require('../core/app').create({
 });
 
 ipcMain.handle('isloh:api', (_e, method, p, body, token) => isloh.handle(String(method), String(p), body, token));
-ipcMain.handle('isloh:pdf', async (_e, date, token) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) throw new Error("Sana noto'g'ri");
-  const buf = isloh.reportPdf(date, token);
-  const dir = app.getPath('downloads');
-  fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `isloh-${date}.pdf`);
-  fs.writeFileSync(file, buf);
-  shell.openPath(file);
-  return file;
-});
 
 /* --------------------------------------------------------------- interfeys fayllari */
 protocol.registerSchemesAsPrivileged([{ scheme: 'isloh', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);

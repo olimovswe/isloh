@@ -111,15 +111,15 @@ a { color: var(--accent); text-decoration: none; }
 @keyframes riseIn { from { opacity: 0; transform: translateY(12px); } }
 @keyframes popIn { from { opacity: 0; transform: scale(.94); } }
 #view > .page, #view > .home { animation: pageIn .5s var(--ease) both; }
-:is(.grid, .tl, #hl, .vgrid, .cols > div, .page) > :is(.card, .metric, .it, .daycard, .vcard, .gap, .grid) { animation: riseIn .55s var(--ease) both; }
-:is(.grid, .tl, #hl, .vgrid, .cols > div, .page) > :nth-child(2) { animation-delay: 40ms; }
-:is(.grid, .tl, #hl, .vgrid, .cols > div, .page) > :nth-child(3) { animation-delay: 80ms; }
-:is(.grid, .tl, #hl, .vgrid, .cols > div, .page) > :nth-child(4) { animation-delay: 120ms; }
-:is(.grid, .tl, #hl, .vgrid, .cols > div, .page) > :nth-child(5) { animation-delay: 160ms; }
-:is(.grid, .tl, #hl, .vgrid, .cols > div, .page) > :nth-child(6) { animation-delay: 200ms; }
-:is(.grid, .tl, #hl, .vgrid, .cols > div, .page) > :nth-child(7) { animation-delay: 240ms; }
-:is(.grid, .tl, #hl, .vgrid, .cols > div, .page) > :nth-child(8) { animation-delay: 280ms; }
-:is(.grid, .tl, #hl, .vgrid, .cols > div, .page) > :nth-child(n+9) { animation-delay: 320ms; }
+:is(.grid, .vgrid, .cols > div, .page) > :is(.card, .metric, .vcard, .grid) { animation: riseIn .55s var(--ease) both; }
+:is(.grid, .vgrid, .cols > div, .page) > :nth-child(2) { animation-delay: 40ms; }
+:is(.grid, .vgrid, .cols > div, .page) > :nth-child(3) { animation-delay: 80ms; }
+:is(.grid, .vgrid, .cols > div, .page) > :nth-child(4) { animation-delay: 120ms; }
+:is(.grid, .vgrid, .cols > div, .page) > :nth-child(5) { animation-delay: 160ms; }
+:is(.grid, .vgrid, .cols > div, .page) > :nth-child(6) { animation-delay: 200ms; }
+:is(.grid, .vgrid, .cols > div, .page) > :nth-child(7) { animation-delay: 240ms; }
+:is(.grid, .vgrid, .cols > div, .page) > :nth-child(8) { animation-delay: 280ms; }
+:is(.grid, .vgrid, .cols > div, .page) > :nth-child(n+9) { animation-delay: 320ms; }
 #view.still *, #view.still > * { animation: none !important; }
 
 /* ---------- tugmalar va maydonlar */
@@ -212,25 +212,11 @@ label.f > span { display: block; font-size: 13px; font-weight: 500; color: var(-
 .stars button:hover { transform: scale(1.15); }
 .stars button.on { color: #ffcc00; transform: scale(1.08); }
 
-/* ---------- tarix */
-.daycard { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 14px 18px; margin-bottom: 10px; cursor: pointer; transition: transform .3s var(--spring), border-color .2s; }
-.daycard:hover { transform: translateY(-2px) scale(1.005); border-color: var(--hair-2); }
-.ring { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; position: relative; }
-.pdots { display: inline-flex; gap: 5px; }
-.pdots i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--mat-3); box-shadow: inset 0 0 0 1px var(--hair-2); }
+/* ---------- ko'rsatkich */
 .metric { padding: 16px 18px; }
 .metric .l { font-size: 13px; font-weight: 500; color: var(--text-2); }
 .metric .v { font-size: 28px; font-weight: 700; margin-top: 2px; letter-spacing: -0.02em; }
 .metric .s { font-size: 12px; color: var(--text-3); }
-.ins { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--hair); }
-.ins:last-child { border-bottom: none; }
-table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
-table.tbl th { text-align: left; font-size: 12px; color: var(--text-2); font-weight: 600; padding: 8px; border-bottom: 1px solid var(--hair); text-transform: uppercase; letter-spacing: .03em; }
-table.tbl td { padding: 11px 8px; border-bottom: 1px solid var(--hair); }
-table.tbl tr:last-child td { border-bottom: none; }
-svg.chart text { fill: var(--text-3); font-size: 11px; font-family: var(--font); }
-svg.chart rect { transition: opacity .2s; }
-svg.chart rect:hover { opacity: .75; }
 
 /* ---------- faollik jadvali */
 .heat-box { --cs: 13px; display: flex; gap: 6px; align-items: flex-start; }
@@ -396,6 +382,35 @@ kbd { font: 600 11px var(--font); padding: 2px 6px; border-radius: 6px; backgrou
 .qa-chips .chip svg { width: 13px; height: 13px; }
 .chip.pick.sm { padding: 6px 11px; font-size: 13px; }
 @keyframes blink { 50% { opacity: .3; } }
+
+/* ---------- eslatmalar */
+.rm-add { padding: 16px 18px 12px; margin-bottom: 6px; }
+.rm-in { display: flex; align-items: center; gap: 12px; }
+.rm-in > span { width: 26px; height: 26px; flex: none; border-radius: 50%; border: 2px dashed var(--text-3); }
+.rm-in input { font-size: 18px; height: 52px; border-radius: 15px; }
+.rm-when { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding-left: 38px; }
+.rm-when input[type=date] { width: 160px; }
+.rm-when input[type=time] { width: 116px; }
+.rm-quick { margin-top: 10px; padding-left: 38px; }
+.rm-sec { display: flex; align-items: baseline; gap: 8px; margin: 22px 6px 8px; font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-2); }
+.rm-sec span { color: var(--text-3); font-weight: 600; letter-spacing: 0; }
+.pl-row.rm { cursor: pointer; }
+.pl-row.rm:hover { transform: translateX(3px); border-color: var(--hair-2); }
+.pl-row.rm .ibtn { opacity: 0; transition: opacity .2s, background .2s; }
+.pl-row.rm:hover .ibtn { opacity: 1; }
+.pl-row.rm .pl-tt b { white-space: normal; }
+.pl-meta svg { width: 13px; height: 13px; }
+.rm-left { color: var(--accent); font-weight: 600; }
+.rm-left.soon { color: var(--orange); }
+.rm-past { padding: 16px 14px 10px; }
+.rm-p { display: flex; align-items: center; gap: 11px; padding: 9px 4px; border-top: 1px solid var(--hair); cursor: pointer; border-radius: 10px; transition: background .2s; }
+.rm-p:hover { background: var(--field); }
+.rm-p .ibtn { width: 30px; height: 30px; opacity: 0; }
+.rm-p:hover .ibtn { opacity: 1; }
+.rm-pi { width: 22px; height: 22px; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; }
+.rm-pi.done { background: color-mix(in srgb, var(--green) 20%, transparent); color: var(--green); }
+.rm-pi svg { width: 13px; height: 13px; stroke-width: 3; }
+.rm-pt { font-size: 14.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- tor oyna (kompyuterda oyna kichraytirilganda) */
 @media (max-width: 1080px) {

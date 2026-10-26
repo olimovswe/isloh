@@ -161,11 +161,21 @@ const at = (ds, hhmm) => T.instant(ds, T.toMin(hhmm), 5);
   for (const i of a.insights) console.log('       -', i.text);
   const a2 = analysis.dayAnalysis(u, D2, at(D2, '04:10'));
   check('kechagi uyqu davomiyligi', () => assert.equal(a2.sleep.hours.toFixed(2), ((at(D2, '04:05') - at(D, '22:40')) / 3600e3).toFixed(2)));
-  const h = analysis.history(u, 'kitob');
-  check("tarixda qidiruv ('kitob')", () => assert(h.items.some(i => i.date === D)));
-  check("tarixda sana bo'yicha qidiruv (26.10)", () => assert.equal(analysis.history(u, '26.10').items[0].date, D));
   const prof = analysis.profile(u);
   check('profil faollik jadvali', () => assert(prof.cells.some(c => c.date === D && c.level >= 1)));
+
+  // --- eslatmalar: matn va vaqt, o'sha vaqtda botdan keladi
+  fake = at(D2, '09:00');
+  thrown = null; try { core.reminderCreate(u, { text: 'Eski', date: D2, time: '08:00' }); } catch (e) { thrown = e; }
+  check("o'tgan vaqtga eslatma qo'yib bo'lmaydi", () => assert(thrown && thrown.status === 400));
+  const rm = core.reminderCreate(u, { text: "Onamga qo'ng'iroq qilish", date: D2, time: '09:30' });
+  sent.length = 0;
+  fake = at(D2, '09:29'); await scheduler.tick(fake);
+  check('eslatma vaqtidan oldin kelmaydi', () => assert(!sent.some(m => m.text && m.text.includes('Eslatma'))));
+  fake = at(D2, '09:30') + 5e3; await scheduler.tick(fake);
+  check('eslatma aynan vaqtida botdan keladi', () => assert(sent.find(m => m.text && m.text.includes('🔔 <b>Eslatma</b>') && m.text.includes('Onamga'))));
+  sent.length = 0; fake += 60e3; await scheduler.tick(fake);
+  check('eslatma bir marta yuboriladi', () => { assert(!sent.some(m => m.text && m.text.includes('Eslatma'))); assert.equal(core.reminders(u).past[0].id, rm.id); assert.equal(core.reminders(u).upcoming.length, 0); });
 
   // --- PDF
   const pdf = report(u, a, { date: D2, items: core.planGet(u, D2).items });

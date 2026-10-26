@@ -1,5 +1,5 @@
 'use strict';
-/* Eslatmalar va avtomatik holatlar jadvali — har 20 soniyada tekshiriladi.
+/* Eslatmalar va avtomatik holatlar jadvali — har 10 soniyada tekshiriladi.
    Har bir hodisa bir marta yuboriladi ("sent" jadvali), dastur qayta ishga tushsa ham takrorlanmaydi.
    Holatlar (qazo, o'tkazib yuborilgan ish) dastur yopiq bo'lgan bo'lsa ham keyin to'g'ri qo'yiladi,
    lekin 15 daqiqadan eski xabarlar endi yuborilmaydi. */
@@ -84,6 +84,13 @@ function create({ db, core, bot, bus, log = console.log }) {
   }
 
   async function tickUser(u, now) {
+    // foydalanuvchi o'zi qo'ygan eslatmalar: aynan o'sha vaqtda, uyqu paytida ham
+    for (const r of db.all('SELECT * FROM reminders WHERE user_id=? AND sent_at IS NULL AND done_at IS NULL AND at<=?', u.id, now)) {
+      db.run('UPDATE reminders SET sent_at=? WHERE id=?', now, r.id);
+      if (now - r.at > 12 * 3600e3) { bus.emit(u.id, { type: 'refresh' }); continue; }
+      const late = now - r.at > 3 * 60e3 ? `\n<i>${T.hhmmAt(r.at, u.tz)} uchun edi — kompyuter o'chiq bo'lgan.</i>` : '';
+      try { await deliver(u, { text: `🔔 <b>Eslatma</b>\n${esc(r.text)}${late}` }); } catch (err) { log('eslatma', u.id, r.id, err.message); }
+    }
     for (const e of eventsFor(u, now)) {
       if (now < e.at || isSent(u.id, e.key)) continue;
       if (e.at < (u.created_at || 0)) continue; // ro'yxatdan o'tishdan oldingi hodisalar
@@ -108,7 +115,7 @@ function create({ db, core, bot, bus, log = console.log }) {
       }
     } finally { busy = false; }
   }
-  return { start: () => { tick(); timer = setInterval(tick, 20e3); }, stop: () => clearInterval(timer), tick, eventsFor, quiet };
+  return { start: () => { tick(); timer = setInterval(tick, 10e3); }, stop: () => clearInterval(timer), tick, eventsFor, quiet };
 }
 
 module.exports = { create };

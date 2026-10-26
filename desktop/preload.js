@@ -4,6 +4,5 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('isloh', {
   api: (method, path, body, token) => ipcRenderer.invoke('isloh:api', method, path, body, token),
-  savePdf: (date, token) => ipcRenderer.invoke('isloh:pdf', date, token),
   onEvent: fn => ipcRenderer.on('isloh:event', (_e, ev) => fn(ev)),
 });

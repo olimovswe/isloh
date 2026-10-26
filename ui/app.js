@@ -15,8 +15,6 @@ const PN = { bomdod: 'Bomdod', quyosh: 'Quyosh', peshin: 'Peshin', asr: 'Asr', s
 const BLOCKS = ['bomdod', 'peshin', 'asr', 'shom', 'xufton'];
 const CATS = [['ilm', 'Ilm'], ['din', 'Din'], ['ish', 'Ish'], ['sport', "Sog'liq"], ['oila', 'Oila'], ['ovqat', 'Ovqat'], ['boshqa', 'Boshqa']];
 const CATC = { ilm: '#7c6cf0', din: '#14a085', ish: '#3b82f6', sport: '#2fbf5b', oila: '#e86fa8', ovqat: '#e07a3f', boshqa: '#8b93a7' };
-const LVL = { 0: ["Ma'lumot yo'q", 'var(--text-3)'], 1: ['Qizil', 'var(--red)'], 2: ['Sariq', 'var(--yellow)'], 3: ['Yashil', 'var(--green)'], 4: ["To'q yashil", 'var(--green)'] };
-const STATUS = { planned: ['Rejada', ''], active: ['Davom etmoqda', 'blue'], done: ['Bajarildi', 'green'], missed: ["O'tkazildi", 'red'] };
 
 const tz = () => (S.me ? S.me.tz : 5);
 const tzDate = (ts = Date.now()) => new Date(ts + tz() * 3600e3);
@@ -29,7 +27,6 @@ const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m;
 const fmtMin = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`; };
 const pct = x => (x === null || x === undefined ? '—' : Math.round(x * 100) + '%');
 const dur = ms => { ms = Math.max(0, ms); const h = Math.floor(ms / 3600e3), m = Math.floor(ms % 3600e3 / 60e3), s = Math.floor(ms % 60e3 / 1e3); return `${pad(h)}:${pad(m)}:${pad(s)}`; };
-const mins = m => (m === null || m === undefined ? '—' : m >= 60 ? `${Math.floor(m / 60)} s ${m % 60} daq` : `${m} daq`);
 function hijri(ds) {
   try {
     const p = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'UTC' }).formatToParts(pd(ds));
@@ -112,7 +109,7 @@ function confirmBox(title, text, ok = 'Ha', danger = false) {
 function applyTheme() { document.documentElement.dataset.theme = (S.me && S.me.theme) || localStorage.getItem('isloh_theme') || 'dark'; }
 
 /* ================================================================ marshrutlar */
-const NAV = [['home', 'home', 'Bosh sahifa'], ['bugun', 'plan', 'Bugun'], ['tarix', 'history', 'Tarix'], ['ilm', 'book', 'Ilm'], ['profil', 'user', 'Profil']];
+const NAV = [['home', 'home', 'Bosh sahifa'], ['bugun', 'plan', 'Bugun'], ['eslatma', 'bell', 'Eslatmalar'], ['ilm', 'book', 'Ilm'], ['profil', 'user', 'Profil']];
 const VIEWS = {};
 const route = () => { const r = location.hash.replace(/^#\/?/, '').split('?')[0]; return VIEWS[r] ? r : 'home'; };
 const param = k => new URLSearchParams(location.hash.split('?')[1] || '').get(k);
@@ -152,7 +149,7 @@ const SLIDES = [
   ['mosque', 'linear-gradient(135deg,#14a085,#0f6b5a)', '5 vaqt namoz — kun markazida', "Namoz vaqtlari, kirishidan oldin eslatma va o'qilgan/qazo namozlar hisobi. Vaqtida belgilanmasa, qazo bo'lib qoladi.", ''],
   ['plan', 'linear-gradient(135deg,#3b82f6,#7c6cf0)', 'Ongli kun', "Kechqurun ertangi kunni soatma-soat rejalang. Ish vaqti kelganda Telegram'dan xabar keladi: «Boshlash» va «Tugatish»ni bosasiz — kechikish va davomiylik o'zi hisoblanadi."],
   ['mic', 'linear-gradient(135deg,#e07a3f,#c4632f)', 'Dunyoqarash', "Eng yaxshi o'zbek podkastlari va kitoblar bir joyda — har kuni ilm bilan ham shug'ullaning."],
-  ['chart', 'linear-gradient(135deg,#2fbf5b,#14a085)', 'Tahlil va tarix', "Har kecha uxlashdan oldin kuningiz tahlili PDF bo'lib keladi. Tarix bo'limida istalgan kunni ko'rib, xulosa chiqarasiz."],
+  ['bell', 'linear-gradient(135deg,#ff9f0a,#ff375f)', 'Eslatmalar', "Nimani eslatishni yozing va vaqtini tanlang — o'sha vaqtda Telegram bot xabar beradi. Har kecha esa kuningiz tahlili PDF bo'lib keladi."],
 ];
 let gateStep = localStorage.getItem('isloh_intro') ? 'login' : 'intro', slide = 0;
 async function gate() {
@@ -579,7 +576,9 @@ VIEWS.bugun = async (v, alive) => {
 };
 
 document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && route() === 'bugun' && PL && !PL.isPast && !$('.modal-bg')) { e.preventDefault(); quickAdd(PL); }
+  if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'k' || $('.modal-bg')) return;
+  if (route() === 'bugun' && PL && !PL.isPast) { e.preventDefault(); quickAdd(PL); }
+  if (route() === 'eslatma' && $('#r-text')) { e.preventDefault(); $('#r-text').focus(); }
 });
 
 /* Matndan vaqt, davomiylik, namoz va yo'nalishni ajratib olish: "Ingliz tili 19:00 45daq", "kitob shomdan keyin 1 soat #ilm" */
@@ -698,134 +697,117 @@ function taskSheet(ctx, t, pre = {}) {
   });
 }
 
-/* ================================================================ TARIX */
-const ring = (score, level, size) => {
-  const c = LVL[level] ? LVL[level][1] : 'var(--text-3)', p = score === null ? 0 : Math.round(score * 100);
-  return `<div class="ring num" style="${size ? `width:${size}px;height:${size}px;font-size:${Math.round(size / 4.2)}px;margin:6px auto 10px;` : ''}background:conic-gradient(${c} ${p * 3.6}deg, var(--glass-3) 0)"><span style="position:absolute;inset:5px;border-radius:50%;background:var(--solid)"></span><span style="position:relative">${score === null ? '—' : p + '%'}</span></div>`;
-};
-const pdots = pr => `<span class="pdots">${BLOCKS.map(p => `<i title="${PN[p]}" style="background:${pr[p] === 'vaqtida' ? 'var(--green)' : pr[p] === 'qazo' ? 'var(--red)' : 'var(--line-2)'}"></i>`).join('')}</span>`;
-function barChart(tr) {
-  const W = 1000, H = 170, pl = 34, pb = 22, pt = 10, n = tr.length, bw = (W - pl) / n, ch = H - pb - pt;
-  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" width="100%">`;
-  for (const y of [0, 50, 100]) { const yy = pt + ch * (1 - y / 100); s += `<line x1="${pl}" x2="${W}" y1="${yy}" y2="${yy}" stroke="var(--line)"/><text x="0" y="${yy + 3}">${y}%</text>`; }
-  tr.forEach((d, i) => {
-    const x = pl + i * bw + 2, h = d.score === null ? 2 : Math.max(2, ch * d.score);
-    const c = d.score === null ? 'var(--glass-3)' : LVL[d.level][1];
-    s += `<rect x="${x}" y="${H - pb - h}" width="${Math.max(2, bw - 4)}" height="${h}" rx="3" fill="${c}"><title>${fmtDate(d.date)}: ${pct(d.score)}</title></rect>`;
-    if (i % 5 === 0 || i === n - 1) s += `<text x="${x + bw / 2 - 8}" y="${H - 6}">${+d.date.slice(8)}.${d.date.slice(5, 7)}</text>`;
-  });
-  return s + '</svg>';
+/* ================================================================ ESLATMALAR: matn va vaqt — o'sha vaqtda Telegram bot xabar beradi */
+const localToday = () => tzDate().toISOString().slice(0, 10);
+const nowHM = (add = 0) => { const d = tzDate(Date.now() + add * 60e3); return { date: d.toISOString().slice(0, 10), time: `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}` }; };
+function leftText(ms) {
+  if (ms <= 0) return 'hozir';
+  const m = Math.ceil(ms / 60e3);
+  if (m < 60) return `${m} daqiqadan keyin`;
+  const h = Math.floor(m / 60), r = m % 60;
+  if (h < 24) return `${h} soat${r ? ` ${r} daqiqa` : ''}dan keyin`;
+  return `${Math.round(h / 24)} kundan keyin`;
 }
-VIEWS.tarix = async (v, alive) => {
-  const d = param('d');
-  if (d) return dayDetail(v, d, alive);
-  const q = param('q') || '';
-  const [tr, hist] = await Promise.all([api('GET', '/api/trends?n=30'), api('GET', `/api/history?q=${encodeURIComponent(q)}`)]);
+const remDay = (ds, today) => { const t = dayTitle(ds, today), d = pd(ds); return ['Bugun', 'Ertaga', 'Indinga', 'Kecha'].includes(t) ? t : `${t}, ${d.getUTCDate()}-${MONTHS[d.getUTCMonth()]}`; };
+
+VIEWS.eslatma = async (v, alive) => {
+  const R = await api('GET', '/api/reminders');
   if (!alive()) return;
-  const closed = tr.filter(x => x.score !== null);
-  const avg = closed.length ? closed.reduce((a, x) => a + x.score, 0) / closed.length : null;
-  const sl = tr.filter(x => x.sleep_hours);
-  const pr = closed.filter(x => x.prayers !== null);
-  let items = hist.items, offset = hist.items.length;
-  const card = it => `<div class="daycard glass" data-d="${it.date}">${ring(it.score, it.level)}
-      <div style="min-width:0"><div class="row"><b>${fmtDay(it.date)}</b>${it.is_today ? '<span class="chip blue">bugun</span>' : ''}<span class="chip" style="color:${LVL[it.level][1]}">${LVL[it.level][0]}</span></div>
-        <div class="muted small" style="margin-top:4px">Ishlar ${it.stats.done}/${it.stats.planned}${it.stats.late_avg ? ` · kechikish ${it.stats.late_avg} daq` : ''}${it.stats.rating_avg ? ` · baho ${it.stats.rating_avg.toFixed(1)}` : ''}${it.sleep.hours ? ` · uyqu ${it.sleep.hours.toFixed(1)} s` : ''}</div>
-        <div class="faint small" style="margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${it.top.map(t => `${t.status === 'done' ? '✓' : t.status === 'missed' ? '✕' : '·'} ${esc(t.title)}`).join('   ')}</div></div>
-      <div style="text-align:right">${pdots(it.prayers)}<div class="faint small" style="margin-top:6px">${it.stats.prayers_ok}/5 namoz</div></div></div>`;
-  v.innerHTML = `<div class="page">
-    <div class="head"><h1>Tarix</h1><span class="muted">har bir kun tahlili</span></div>
-    <div class="grid g4" style="margin-bottom:14px">
-      <div class="metric glass"><div class="l">O'rtacha ball (30 kun)</div><div class="v num">${pct(avg)}</div><div class="s">${closed.filter(x => x.level >= 3).length} yashil · ${closed.filter(x => x.level === 2).length} sariq · ${closed.filter(x => x.level === 1).length} qizil</div></div>
-      <div class="metric glass"><div class="l">Bajarilgan ishlar</div><div class="v num">${closed.reduce((a, x) => a + (x.done || 0), 0)} / ${closed.reduce((a, x) => a + (x.planned || 0), 0)}</div><div class="s">oxirgi 30 kun</div></div>
-      <div class="metric glass"><div class="l">Namozlar vaqtida</div><div class="v num">${(() => { const c = pr.reduce((a, x) => a + (x.prayers_counted || 0), 0); return c ? pct(pr.reduce((a, x) => a + x.prayers, 0) / c) : '—'; })()}</div><div class="s">${pr.reduce((a, x) => a + ((x.prayers_counted || 0) - x.prayers), 0)} ta qazo</div></div>
-      <div class="metric glass"><div class="l">O'rtacha uyqu</div><div class="v num">${sl.length ? (sl.reduce((a, x) => a + x.sleep_hours, 0) / sl.length).toFixed(1) + ' s' : '—'}</div><div class="s">${sl.length} kecha</div></div>
-    </div>
-    <div class="card glass"><h3>Kun ballari — oxirgi 30 kun</h3>${barChart(tr)}</div>
-    <div class="card glass" style="padding:10px 12px"><div class="row">${ic('search').replace('<svg', '<svg width="18" height="18" style="color:var(--text-3)"')}
-      <input type="search" id="hq" value="${esc(q)}" placeholder="Qidirish: sana (26.10), oy (oktabr) yoki ish nomi (kitob)" style="border:none;background:transparent"></div></div>
-    <div class="muted small" style="margin:0 4px 8px">${hist.total} kun topildi</div>
-    <div id="hl">${items.map(card).join('') || '<div class="empty">Hech narsa topilmadi.</div>'}</div>
-    ${hist.total > offset ? '<div style="text-align:center"><button class="btn" id="more">Yana ko\'rsatish</button></div>' : ''}
-  </div>`;
-  let qt;
-  v.oninput = e => { if (e.target.id !== 'hq') return; clearTimeout(qt); qt = setTimeout(() => { history.replaceState(null, '', `#/tarix${e.target.value ? '?q=' + encodeURIComponent(e.target.value) : ''}`); render(true).then(() => { const i = $('#hq'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }); }, 350); };
-  v.onclick = async e => {
-    const c = e.target.closest('.daycard'); if (c) { location.hash = `#/tarix?d=${c.dataset.d}`; return; }
-    if (e.target.id === 'more') {
-      const h = await api('GET', `/api/history?q=${encodeURIComponent(q)}&offset=${offset}`);
-      offset += h.items.length;
-      $('#hl').insertAdjacentHTML('beforeend', h.items.map(card).join(''));
-      if (offset >= h.total) e.target.remove();
+  const today = localToday(), tomorrow = addDays(today, 1);
+  const bot = esc((S.config && S.config.bot_username) || 'islohuzbot');
+  const groups = [];
+  for (const r of R.upcoming) { const g = groups[groups.length - 1]; if (g && g.date === r.date) g.items.push(r); else groups.push({ date: r.date, items: [r] }); }
+  const row = r => `<div class="pl-row rm" data-a="edit" data-id="${r.id}">
+      <button class="pl-chk" data-a="done" data-id="${r.id}" title="Bajarildi — eslatish shart emas"></button>
+      <div class="grow pl-tt"><b>${esc(r.text)}</b><div class="pl-meta num">${ic('bell')} ${r.time} · <span class="rm-left" data-at="${r.at}">${leftText(r.at - Date.now())}</span></div></div>
+      <button class="ibtn" data-a="del" data-id="${r.id}" title="O'chirish">${ic('trash')}</button></div>`;
+  const prow = r => `<div class="rm-p" data-a="edit" data-id="${r.id}"><span class="rm-pi ${r.done_at && !r.sent_at ? 'done' : ''}">${ic('check')}</span>
+      <div class="grow"><div class="rm-pt">${esc(r.text)}</div><div class="faint small num">${r.sent_at ? `Yuborildi · ${remDay(r.date, today)} ${r.time}` : `Bajarildi · ${remDay(r.date, today)} ${r.time} edi`}</div></div>
+      <button class="ibtn" data-a="del" data-id="${r.id}" title="O'chirish">${ic('trash')}</button></div>`;
+  v.innerHTML = `<div class="pl">
+    <div class="pl-head"><div><div class="pl-eye">Vaqti kelganda @${bot} xabar beradi</div><h1>Eslatmalar</h1></div></div>
+    <div class="pl-cols"><div>
+      <div class="card glass rm-add">
+        <div class="rm-in"><span></span><input type="text" id="r-text" maxlength="300" autocomplete="off" placeholder="Nimani eslatay? Masalan: Onamga qo'ng'iroq qilish 18:30"></div>
+        <div class="rm-when">
+          <div class="seg" id="r-day"><button data-d="${today}" class="on">Bugun</button><button data-d="${tomorrow}">Ertaga</button></div>
+          <input type="date" id="r-date" value="${today}" min="${today}"><input type="time" id="r-time">
+          <span class="grow"></span><button class="btn primary" data-a="add">${ic('plus')} Qo'shish</button></div>
+        <div class="chips rm-quick">${[['15', '15 daqiqadan keyin'], ['60', '1 soatdan keyin'], ['t21', 'Bugun 21:00'], ['m08', 'Ertaga 08:00']].map(([k, n]) => `<span class="chip pick sm" data-q="${k}">${n}</span>`).join('')}</div>
+        <div class="err" id="r-err"></div>
+      </div>
+      ${groups.length ? groups.map(g => `<div class="rm-sec">${remDay(g.date, today)} <span>${g.items.length}</span></div>${g.items.map(row).join('')}`).join('')
+        : `<div class="pl-hint" style="padding-top:26px">${ic('bell')} Hozircha eslatma yo'q. Yozing va vaqtini tanlang — o'sha vaqtda Telegram'ga xabar keladi.</div>`}
+    </div><div class="pl-side">
+      <div class="card glass rm-past"><div class="row" style="margin-bottom:8px"><h3 class="grow" style="margin:0">Yuborilganlar</h3>${R.past.length ? '<button class="btn ghost sm" data-a="clear">Tozalash</button>' : ''}</div>
+        ${R.past.length ? R.past.map(prow).join('') : '<div class="muted small">Hali yo\'q.</div>'}</div>
+    </div></div></div>`;
+
+  const tIn = $('#r-text'), dIn = $('#r-date'), hIn = $('#r-time'), err = $('#r-err');
+  const syncDay = () => $$('#r-day button').forEach(b => b.classList.toggle('on', b.dataset.d === dIn.value));
+  // matndagi vaqt (18:30) o'zi vaqt maydoniga o'tadi
+  const timeRx = /(^|\s)([01]?\d|2[0-3])[:.]([0-5]\d)(?=\s|$)/;
+  tIn.addEventListener('input', () => { const m = tIn.value.match(timeRx); if (m) hIn.value = `${pad(m[2])}:${m[3]}`; err.textContent = ''; });
+  dIn.addEventListener('change', syncDay);
+  if (!v.classList.contains('still')) setTimeout(() => tIn.focus(), 60);
+  tickFns.push(now => {
+    for (const el of $$('.rm-left', v)) {
+      const ms = +el.dataset.at - now;
+      el.textContent = leftText(ms);
+      el.classList.toggle('soon', ms < 10 * 60e3);
     }
-  };
-};
-function gantt(a) {
-  const tasks = a.tasks, W = 820, rowH = 30, pl = 150, top = 22, H = top + Math.max(1, tasks.length) * rowH + 24;
-  const w0 = toMin(a.sleep.wake_plan); let s0 = toMin(a.sleep.sleep_plan); if (s0 <= w0) s0 += 1440;
-  const span = Math.max(60, s0 - w0);
-  const base = Date.UTC(...a.date.split('-').map((x, i) => (i === 1 ? x - 1 : +x))) - tz() * 3600e3;
-  const X = m => pl + Math.max(0, Math.min(1, (m - w0) / span)) * (W - pl - 10);
-  const mm = ts => (ts - base) / 60e3;
-  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" width="100%">`;
-  for (let m = Math.ceil(w0 / 60) * 60; m <= s0; m += span > 900 ? 120 : 60) s += `<line x1="${X(m)}" x2="${X(m)}" y1="${top - 6}" y2="${H - 20}" stroke="var(--line)"/><text x="${X(m) - 13}" y="12">${fmtMin(m)}</text>`;
-  for (const p of BLOCKS) {
-    const ps = toMin(a.prayers[p].start);
-    if (ps < w0 || ps > s0) continue;
-    s += `<rect x="${X(ps)}" y="${top}" width="${Math.max(2, X(ps + (S.me.prayer_mins || 20)) - X(ps))}" height="${H - top - 22}" fill="rgba(20,160,133,.18)"/><text x="${X(ps)}" y="${H - 6}" style="fill:var(--teal)">${PN[p]}</text>`;
-  }
-  tasks.forEach((t, i) => {
-    const y = top + i * rowH;
-    s += `<text x="0" y="${y + 19}" style="fill:var(--text);font-size:12px">${esc(t.title.length > 22 ? t.title.slice(0, 21) + '…' : t.title)}</text>`;
-    s += `<rect x="${X(mm(t.planned_start))}" y="${y + 6}" width="${Math.max(3, X(mm(t.planned_end)) - X(mm(t.planned_start)))}" height="18" rx="5" fill="var(--glass-3)"/>`;
-    if (t.actual_start) {
-      const c = (t.late || 0) <= 5 ? 'var(--green)' : (t.late || 0) <= 20 ? 'var(--yellow)' : 'var(--red)';
-      s += `<rect x="${X(mm(t.actual_start))}" y="${y + 11}" width="${Math.max(3, X(mm(t.actual_end || Date.now())) - X(mm(t.actual_start)))}" height="8" rx="4" fill="${c}"/>`;
-    } else if (t.status === 'missed') s += `<text x="${X(mm(t.planned_end)) + 6}" y="${y + 19}" style="fill:var(--red)">o'tkazildi</text>`;
   });
-  return s + '</svg>';
-}
-async function dayDetail(v, ds, alive) {
-  const a = await api('GET', `/api/day/${ds}`);
-  if (!alive()) return;
-  const s = a.stats, sl = a.sleep;
-  const late = x => (x === null ? '' : x > 0 ? ` <span style="color:${x > 20 ? 'var(--red)' : 'var(--yellow)'}">(+${x} daq)</span>` : x < 0 ? ` <span class="faint">(${-x} daq erta)</span>` : ' <span style="color:var(--green)">(o\'z vaqtida)</span>');
-  v.innerHTML = `<div class="page">
-    <div class="head"><button class="ibtn" data-a="back">${ic('back')}</button><h1>${fmtDay(ds)}</h1><span class="muted">${fmtDate(ds)} · ${hijri(ds)}</span><span class="grow"></span>
-      <button class="btn" data-a="pdf">${ic('pdf')} PDF hisobot</button></div>
-    <div class="grid" style="grid-template-columns:200px minmax(0,1fr);margin-bottom:14px">
-      <div class="card glass" style="text-align:center;margin:0">${ring(a.score, a.level, 110)}
-        <div class="chip" style="color:${LVL[a.level][1]}">${a.level_name}</div><div class="faint small" style="margin-top:8px">ishlar ${pct(a.components.tasks)} · namoz ${pct(a.components.prayers)} · uyqu ${pct(a.components.sleep)}</div></div>
-      <div class="grid g3" style="margin:0">
-        <div class="metric glass"><div class="l">Ishlar</div><div class="v num">${s.done} / ${s.planned}</div><div class="s">${s.missed ? s.missed + " tasi o'tkazildi" : 'bajarildi'}</div></div>
-        <div class="metric glass"><div class="l">O'rtacha kechikish</div><div class="v num">${s.late_avg === null ? '—' : s.late_avg + ' daq'}</div><div class="s">${s.late_count} ta ish kech boshlandi</div></div>
-        <div class="metric glass"><div class="l">Namozlar</div><div class="v num">${s.prayers_ok} / 5</div><div class="s">${pdots(Object.fromEntries(BLOCKS.map(p => [p, a.prayers[p].status])))}</div></div>
-        <div class="metric glass"><div class="l">O'rtacha baho</div><div class="v num">${s.rating_avg ? s.rating_avg.toFixed(1) + ' / 5' : '—'}</div><div class="s">o'z bahongiz</div></div>
-        <div class="metric glass"><div class="l">Sarflangan vaqt</div><div class="v num">${mins(s.actual_min)}</div><div class="s">rejada ${mins(s.planned_min)}</div></div>
-        <div class="metric glass"><div class="l">Uyqu</div><div class="v num">${sl.hours ? sl.hours.toFixed(1) + ' s' : '—'}</div><div class="s">turish ${sl.wake_actual || '—'} · uxlash ${sl.sleep_actual || '—'}</div></div>
-      </div></div>
-    <div class="card glass"><h3>Kun jadvali <span class="muted small" style="font-weight:400">— kulrang: reja, rangli: haqiqatda</span></h3>${a.tasks.length ? gantt(a) : '<div class="muted">Bu kun uchun ish rejalashtirilmagan.</div>'}</div>
-    ${a.tasks.length ? `<div class="card glass" style="overflow-x:auto"><h3>Ishlar tafsiloti</h3><table class="tbl"><tr><th>Ish</th><th>Reja</th><th>Haqiqatda</th><th>Kechikish</th><th>Davomiyligi</th><th>Baho</th><th>Ball</th><th>Holat</th></tr>
-      ${a.tasks.map(t => `<tr><td><b>${esc(t.title)}</b>${t.note ? `<div class="faint small">${esc(t.note)}</div>` : ''}</td><td class="num">${t.start}–${t.end}</td>
-        <td class="num">${t.actual_start ? `${hhmm(t.actual_start)}–${t.actual_end ? hhmm(t.actual_end) : '…'}` : '—'}</td>
-        <td class="num" style="color:${t.late > 20 ? 'var(--red)' : t.late > 5 ? 'var(--yellow)' : ''}">${t.late === null ? '—' : t.late > 0 ? '+' + t.late + ' daq' : "o'z vaqtida"}</td>
-        <td class="num">${t.actual_min ?? '—'} / ${t.planned_min} daq</td><td>${t.rating ? '★'.repeat(t.rating) : '—'}</td><td class="num">${t.score === null ? '—' : pct(t.score)}</td>
-        <td><span class="chip ${(STATUS[t.status] || STATUS.planned)[1]}">${(STATUS[t.status] || STATUS.planned)[0]}</span></td></tr>`).join('')}</table></div>` : ''}
-    <div class="grid g2">
-      <div class="card glass"><h3>Namozlar</h3>${BLOCKS.map(p => { const x = a.prayers[p]; return `<div class="row" style="padding:6px 0"><span class="dot" style="background:${x.status === 'vaqtida' ? 'var(--green)' : x.status === 'qazo' ? 'var(--red)' : 'var(--line-2)'}"></span><b class="grow">${PN[p]}</b><span class="muted num">${x.start}–${x.end}</span><span style="width:110px;text-align:right">${x.status === 'vaqtida' ? "O'z vaqtida" : x.status === 'qazo' ? 'Qazo' : '—'}</span></div>`; }).join('')}</div>
-      <div class="card glass"><h3>Uyqu va uyg'onish</h3>
-        <div style="padding:6px 0">🌅 Turish: reja <b>${sl.wake_plan}</b> · haqiqatda <b>${sl.wake_actual || '—'}</b>${late(sl.wake_late)}</div>
-        <div style="padding:6px 0">🌙 Uxlash: reja <b>${sl.sleep_plan}</b> · haqiqatda <b>${sl.sleep_actual || '—'}</b>${late(sl.sleep_late)}</div>
-        <div style="padding:6px 0">😴 Kechagi uyqu: <b>${sl.hours ? sl.hours.toFixed(1) + ' soat' : '—'}</b></div></div>
-    </div>
-    <div class="card glass"><h3>Xulosalar</h3>${a.insights.length ? a.insights.map(i => `<div class="ins"><span class="dot" style="margin-top:5px;background:${i.kind === 'good' ? 'var(--green)' : 'var(--yellow)'}"></span><span>${esc(i.text)}</span></div>`).join('') : '<div class="muted">Kun davom etmoqda — xulosalar ishlar bajarilgach chiqadi.</div>'}</div>
-  </div>`;
+  const add = async () => {
+    const text = tIn.value.replace(timeRx, ' ').replace(/\s+/g, ' ').trim();
+    if (!text) { err.textContent = 'Nimani eslatishni yozing'; tIn.focus(); return; }
+    if (!hIn.value) { err.textContent = 'Vaqtni tanlang'; hIn.focus(); return; }
+    try {
+      const r = await api('POST', '/api/reminders', { text, date: dIn.value, time: hIn.value });
+      toast(`Eslatma: ${remDay(r.date, today)} ${r.time}`); refresh();
+    } catch (e) { err.textContent = e.message; }
+  };
+  v.onkeydown = e => { if (e.key === 'Enter' && (e.target === tIn || e.target === hIn)) { e.preventDefault(); add(); } };
   v.onclick = async e => {
+    const d = e.target.closest('#r-day [data-d]'); if (d) { dIn.value = d.dataset.d; syncDay(); return; }
+    const q = e.target.closest('[data-q]');
+    if (q) {
+      const k = q.dataset.q, x = k === 't21' ? { date: today, time: '21:00' } : k === 'm08' ? { date: tomorrow, time: '08:00' } : nowHM(+k);
+      dIn.value = x.date; hIn.value = x.time; syncDay(); err.textContent = ''; tIn.focus(); return;
+    }
     const b = e.target.closest('[data-a]'); if (!b) return;
-    if (b.dataset.a === 'back') { location.hash = '#/tarix'; return; }
-    if (b.dataset.a === 'pdf') {
-      try { const p = await window.isloh.savePdf(ds, S.token); if (p) toast('PDF saqlandi va ochildi'); } catch (err) { fail(err); }
-    }
+    const a = b.dataset.a, id = +b.dataset.id, r = R.upcoming.concat(R.past).find(x => x.id === id);
+    try {
+      if (a === 'add') return add();
+      if (a === 'done') { e.stopPropagation(); await api('PATCH', `/api/reminders/${id}`, { done: true }); toast('Bajarildi'); }
+      if (a === 'del') { e.stopPropagation(); await api('DELETE', `/api/reminders/${id}`); toast("O'chirildi"); }
+      if (a === 'clear') { if (!(await confirmBox('Tozalash', "Yuborilgan va bajarilgan eslatmalar o'chiriladi.", 'Tozalash', true))) return; await api('DELETE', '/api/reminders'); }
+      if (a === 'edit') return remSheet(r, today);
+      refresh();
+    } catch (err2) { fail(err2); }
   };
+};
+/* Eslatmani tahrirlash yoki qaytadan eslatish */
+function remSheet(r, today) {
+  const sent = !!(r.sent_at || r.done_at);
+  const m = modal(`<h2>${sent ? 'Qayta eslatish' : 'Eslatmani tahrirlash'}</h2>
+    <label class="f" style="margin-top:12px"><span>Nimani eslatay?</span><input type="text" id="m-text" maxlength="300" value="${esc(r.text)}" autofocus></label>
+    <div class="grid g2" style="gap:10px"><label class="f"><span>Kun</span><input type="date" id="m-date" min="${today}" value="${sent ? today : r.date}"></label>
+      <label class="f"><span>Vaqt</span><input type="time" id="m-time" value="${sent ? '' : r.time}"></label></div>
+    <div class="err" id="m-err"></div>
+    <div class="foot"><button class="btn red" data-x="del" style="margin-right:auto">${ic('trash')} O'chirish</button><button class="btn" data-x="c">Bekor</button><button class="btn primary" data-x="ok">${sent ? 'Qayta eslatish' : 'Saqlash'}</button></div>`);
+  const save = async () => {
+    const body = { text: $('#m-text', m.el).value, date: $('#m-date', m.el).value, time: $('#m-time', m.el).value };
+    if (!body.time) { $('#m-err', m.el).textContent = 'Vaqtni tanlang'; return; }
+    if (!sent && body.date === r.date && body.time === r.time) { delete body.date; delete body.time; }
+    try { await api('PATCH', `/api/reminders/${r.id}`, body); m.close(); toast('Saqlandi'); refresh(); } catch (e) { $('#m-err', m.el).textContent = e.message; }
+  };
+  m.el.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') save(); });
+  m.el.addEventListener('click', async e => {
+    const x = e.target.closest('[data-x]'); if (!x) return;
+    if (x.dataset.x === 'c') return m.close();
+    if (x.dataset.x === 'ok') return save();
+    if (x.dataset.x === 'del') { try { await api('DELETE', `/api/reminders/${r.id}`); m.close(); toast("O'chirildi"); refresh(); } catch (err) { fail(err); } }
+  });
 }
 
 /* ================================================================ ILM: podkastlar va kitoblar */
@@ -966,7 +948,7 @@ VIEWS.profil = async (v, alive) => {
   const pick = id => { const b = $(`#${id} button.on`); return b ? b.dataset.v : null; };
   v.onclick = async e => {
     const sb = e.target.closest('.seg button'); if (sb) { $$('button', sb.parentElement).forEach(x => x.classList.toggle('on', x === sb)); if (sb.parentElement.id === 'p-th') { document.documentElement.dataset.theme = sb.dataset.v; } return; }
-    const cell = e.target.closest('.heat i[data-d]'); if (cell) { location.hash = `#/tarix?d=${cell.dataset.d}`; return; }
+    const cell = e.target.closest('.heat i[data-d]'); if (cell) { location.hash = `#/bugun?d=${cell.dataset.d}`; return; }
     const b = e.target.closest('[data-a]'); if (!b) return;
     if (b.dataset.a === 'save') {
       try {
