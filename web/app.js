@@ -177,7 +177,6 @@ async function gate() {
     <a class="btn primary lg" style="width:100%" href="https://t.me/${bot}" target="_blank" rel="noopener">${ic('tg')} Telegram'da ochish</a>
     <div class="code">${Array.from({ length: 6 }, (_, i) => `<input type="text" inputmode="numeric" maxlength="1" data-i="${i}" ${i === 0 ? 'autofocus' : ''}>`).join('')}</div>
     <div class="err" id="g-err"></div>
-    ${S.config && S.config.dev_login ? `<button class="btn ghost sm" data-g="dev">Sinov rejimi: botsiz kirish</button>` : ''}
   </div></div>`;
   const boxes = $$('.code input', g);
   setTimeout(() => boxes[0].focus(), 50);
@@ -211,11 +210,6 @@ async function gate() {
     const t = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
     if (t.length === 6) { e.preventDefault(); t.split('').forEach((c, k) => { boxes[k].value = c; }); submit(); }
   }, { once: true });
-  g.onclick = async e => {
-    const b = e.target.closest('[data-g="dev"]');
-    if (!b) return;
-    try { const r = await api('POST', '/api/auth/dev', { name: 'Sinov', phone: '998900000001' }); r.code.split('').forEach((c, k) => { boxes[k].value = c; }); submit(); } catch (err) { fail(err); }
-  };
 }
 function setupForm(g) {
   const u = S.me, now = new Date(), y0 = now.getFullYear();
@@ -237,7 +231,6 @@ function setupForm(g) {
     const birth = `${$('#s-y', g).value}-${pad($('#s-m', g).value)}-${pad($('#s-d', g).value)}`;
     try {
       S.me = await api('PUT', '/api/me', { name: $('#s-name', g).value, birth_date: birth, wake: $('#s-wake', g).value, sleep: $('#s-sleep', g).value, city: $('#s-city', g).value, onboarded: true });
-      if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
       location.hash = '#/home'; render();
     } catch (e) { $('#s-err', g).textContent = e.message; }
   };
@@ -709,7 +702,6 @@ VIEWS.profil = async (v, alive) => {
   S.me = me;
   const st = P.stats;
   const age = me.birth_date ? Math.floor((Date.now() - Date.parse(me.birth_date)) / 31556952000) : null;
-  const notif = 'Notification' in window ? Notification.permission : 'unsupported';
   v.innerHTML = `<div class="page">
     <div class="head"><h1>Profil</h1></div>
     <div class="card glass"><div class="row wrap" style="gap:18px">
@@ -743,9 +735,8 @@ VIEWS.profil = async (v, alive) => {
       <label class="f"><span>Mavzu</span><div class="seg" id="p-th"><button data-v="dark" class="${me.theme === 'dark' ? 'on' : ''}">${ic('moon').replace('<svg', '<svg width="14" height="14" style="vertical-align:-2px"')} Qorong'i</button><button data-v="light" class="${me.theme === 'light' ? 'on' : ''}">${ic('sun').replace('<svg', '<svg width="14" height="14" style="vertical-align:-2px"')} Yorug'</button></div></label>
       <div class="err" id="p-err"></div>
       <div class="row wrap"><button class="btn primary" data-a="save">Saqlash</button>
-        ${notif === 'default' ? `<button class="btn" data-a="notif">${ic('bell')} Ilova bildirishnomalarini yoqish</button>` : notif === 'granted' ? '<span class="chip green">Ilova bildirishnomalari yoqilgan</span>' : ''}
         <span class="grow"></span><button class="btn" data-a="logout">${ic('logout')} Chiqish</button></div>
-      <div class="faint small" style="margin-top:10px">Eslatmalar Telegram bot (@${esc(S.config.bot_username)}) orqali keladi; ilova ochiq bo'lsa, shu yerda ham chiqadi.</div>
+      <div class="faint small" style="margin-top:10px">Barcha eslatmalar va hisobotlar Telegram bot (@${esc(S.config.bot_username)}) orqali keladi.</div>
     </div></div>`;
   fitHeat();
   window.onresize = () => { if (route() === 'profil') fitHeat(); };
@@ -761,26 +752,19 @@ VIEWS.profil = async (v, alive) => {
         localStorage.setItem('isloh_theme', S.me.theme); applyTheme(); toast('Saqlandi'); refresh();
       } catch (err) { $('#p-err').textContent = err.message; }
     }
-    if (b.dataset.a === 'notif') { await Notification.requestPermission(); refresh(); }
     if (b.dataset.a === 'logout') { if (await confirmBox('Chiqish', "Bu qurilmadagi sessiya tugaydi. Ma'lumotlaringiz saqlanib qoladi.", 'Chiqish')) { api('POST', '/api/auth/logout').catch(() => {}); logoutLocal(); } }
   };
 };
 
-/* ================================================================ jonli hodisalar va bildirishnomalar */
+/* ================================================================ jonli yangilanish
+   Botda tugma bosilganda (Boshlash, O'qidim...) ilova o'zi yangilanadi. Xabarlarning hammasi botdan keladi. */
 let ES = null, refreshT;
 function startEvents() {
   if (ES || !S.token) return;
   ES = new EventSource(`/api/events?token=${encodeURIComponent(S.token)}`);
   ES.onmessage = e => {
     let ev; try { ev = JSON.parse(e.data); } catch (err) { return; }
-    if (ev.type === 'notify') {
-      toast(ev.title);
-      if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-        try { new Notification(ev.title, { body: ev.body, icon: '/icons/icon-256.png', tag: ev.title }); } catch (err) { /* ba'zi brauzerlarda faqat SW orqali */ }
-      }
-      if (ev.sound) new Audio('/chime.wav').play().catch(() => {});
-    }
-    if (ev.type === 'refresh' || ev.type === 'notify') {
+    if (ev.type === 'refresh') {
       clearTimeout(refreshT);
       refreshT = setTimeout(() => { if (!$('.modal-bg') && !(document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) refresh(); }, 400);
     }
@@ -788,33 +772,12 @@ function startEvents() {
   ES.onerror = () => { ES.close(); ES = null; setTimeout(startEvents, 5000); };
 }
 
-/* Telegram Mini App bilan aloqa (rasmiy skriptsiz, xom hodisalar orqali) */
-function tgPost(ev, data = '') {
-  try {
-    if (window.TelegramWebviewProxy) window.TelegramWebviewProxy.postEvent(ev, data);
-    else if (window.external && 'notify' in window.external) window.external.notify(JSON.stringify({ eventType: ev, eventData: data }));
-    else if (window.parent !== window) window.parent.postMessage(JSON.stringify({ eventType: ev, eventData: data }), '*');
-  } catch (e) { /* Telegram'dan tashqarida */ }
-}
-
 /* ================================================================ ishga tushirish */
 (async function boot() {
   applyTheme();
   requestAnimationFrame(loop);
   try { S.config = await api('GET', '/api/config'); } catch (e) { $('#gate').innerHTML = '<div class="gate"><div class="card glass"><h1>Server bilan aloqa yo\'q</h1><p>Isloh serveri ishga tushirilganini tekshiring.</p></div></div>'; return; }
-  // Botdagi tugmadan ochilganda: "?p=reja%3Fd%3D..." — kerakli bo'lim; Telegram ichida "#tgWebAppData=..." — kodsiz kirish
-  const tgData = new URLSearchParams(location.hash.slice(1)).get('tgWebAppData');
-  const page = new URLSearchParams(location.search).get('p');
-  if (page || tgData) history.replaceState(null, '', '/#/' + (page || 'home'));
-  if (tgData) {
-    tgPost('web_app_ready'); tgPost('web_app_expand');
-    if (!S.token) {
-      try { const r = await api('POST', '/api/auth/telegram', { init_data: tgData }); S.token = r.token; localStorage.setItem('isloh_token', r.token); localStorage.setItem('isloh_intro', '1'); }
-      catch (e) { toast(e.message, true); }
-    }
-  }
   if (S.token) { try { S.me = await api('GET', '/api/me'); startEvents(); } catch (e) { S.token = ''; } }
   applyTheme();
   render();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 })();

@@ -27,9 +27,7 @@ function create({ db, core, bot, bus, log = console.log }) {
   }
 
   async function deliver(u, msg) {
-    const plain = msg.text.replace(/<[^>]+>/g, '');
-    const [title, ...rest] = plain.split('\n');
-    bus.emit(u.id, { type: 'notify', title, body: rest.join(' ').trim(), sound: !!msg.sound });
+    bus.emit(u.id, { type: 'refresh' });
     if (bot && u.tg_id > 0) await bot.send(u.tg_id, msg.text, msg.rows);
   }
 
@@ -78,8 +76,7 @@ function create({ db, core, bot, bus, log = console.log }) {
     if (remind < f.wake) remind += 1440;
     if (!core.dayRow(u, tomorrow).plan_ready) {
       ev.push({ key: `plan:${today}`, at: T.instant(today, remind, u.tz),
-        msg: { text: `📝 <b>Ertangi kun rejasini tuzish vaqti</b>\n${T.fmtDay(tomorrow)}\n\nUyg'onish ${u.wake}. Namoz vaqtlari avtomatik qo'yilgan — bo'sh vaqtlarga ishlaringizni joylang.`,
-          rows: [bot ? bot.appRow('📝 Rejani tuzish', `/#/reja?d=${tomorrow}`) : null], sound: true } });
+        msg: { text: `📝 <b>Ertangi kun rejasini tuzish vaqti</b>\n${T.fmtDay(tomorrow)}\n\nKompyuterdagi Isloh ilovasida «Reja» → «Ertaga» ni oching. Uyg'onish ${u.wake}, namoz vaqtlari avtomatik qo'yilgan — bo'sh vaqtlarga ishlaringizni joylang.` } });
     }
     ev.push({ key: `pdf:${today}`, at: sleepAt - 5 * 60e3, pdf: today });
     if (!day.sleep_at) ev.push({ key: `s:${today}`, at: sleepAt, msg: { text: `🌙 <b>Uxlash vaqti</b> — ${u.sleep}\nYotganingizda tugmani bosing. Ertalab ${u.wake} gacha bezovta qilmayman.`, rows: [[{ text: '😴 Uxladim', callback_data: `sl:${today}` }]], sound: true } });
@@ -95,7 +92,7 @@ function create({ db, core, bot, bus, log = console.log }) {
       if (now - e.at > FRESH) continue;
       if (quiet(u, now) && !e.allowQuiet) continue;
       try {
-        if (e.pdf) { if (bot && u.tg_id > 0) await bot.sendDailyPdf(u, e.pdf); bus.emit(u.id, { type: 'notify', title: 'Kunlik hisobot tayyor', body: 'Tarix bo\'limida ko\'ring' }); }
+        if (e.pdf) { if (bot && u.tg_id > 0) await bot.sendDailyPdf(u, e.pdf); }
         else if (e.msg) await deliver(u, e.msg);
       } catch (err) { log('notify', u.id, e.key, err.message); }
     }

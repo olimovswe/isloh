@@ -19,7 +19,7 @@ const core = require('./core').create(db, bus);
 const analysis = require('./analysis').create(db, core);
 const { report } = require('./pdf');
 const sent = [];
-const bot = require('./bot').create({ token: 'x', core, analysis, reportPdf: report, publicUrl: 'https://isloh.example.uz', log: () => {},
+const bot = require('./bot').create({ token: 'x', core, analysis, reportPdf: report, log: () => {},
   transport: async (method, p) => { sent.push({ method, ...p }); return { message_id: sent.length, chat: { id: p.chat_id } }; } });
 const scheduler = require('./scheduler').create({ db, core, bot, bus, log: (...a) => console.log('  log:', ...a) });
 
@@ -42,7 +42,7 @@ const at = (ds, hhmm) => T.instant(ds, T.toMin(hhmm), 5);
   await bot.handle({ update_id: 3, message: { chat: { id: 555, type: 'private' }, from: { id: 555, first_name: 'Muslimbek', username: 'olimov' }, contact: { user_id: 555, phone_number: '998901234567' } } });
   const codeMsg = [...sent].reverse().find(m => m.text && m.text.includes('<code>'));
   const code = codeMsg.text.match(/<code>(\d{6})<\/code>/)[1];
-  check('kontakt → hisob, 6 xonali kod va ilova menyusi', () => { assert(/^\d{6}$/.test(code)); assert(sent.some(m => m.reply_markup && m.reply_markup.remove_keyboard)); assert(sent.some(m => m.method === 'setChatMenuButton' && m.chat_id === 555)); });
+  check('kontakt → hisob va 6 xonali kod', () => { assert(/^\d{6}$/.test(code)); assert(sent.some(m => m.reply_markup && m.reply_markup.remove_keyboard)); });
 
   // --- ilova: kod bilan kirish
   let thrown = null;
@@ -52,18 +52,6 @@ const at = (ds, hhmm) => T.instant(ds, T.toMin(hhmm), 5);
   check('kod → sessiya', () => { assert(token.length === 64); assert.equal(user.phone, '+998901234567'); assert.equal(core.auth(token).id, user.id); });
   thrown = null; try { core.verifyCode(code); } catch (e) { thrown = e; }
   check('kod faqat bir marta ishlaydi', () => assert(thrown));
-  {
-    const crypto = require('crypto'), BT = '123456:TEST-token-for-selftest-only-0000000';
-    const fields = { auth_date: String(Math.floor(Date.now() / 1000)), query_id: 'AAH', user: JSON.stringify({ id: 555, first_name: 'Muslimbek' }) };
-    const dcs = Object.keys(fields).sort().map(k => `${k}=${fields[k]}`).join('\n');
-    const secret = crypto.createHmac('sha256', 'WebAppData').update(BT).digest();
-    const hash = crypto.createHmac('sha256', secret).update(dcs).digest('hex');
-    const initData = new URLSearchParams({ ...fields, hash }).toString();
-    check('Telegram Mini App: imzo bilan kodsiz kirish', () => assert.equal(core.authTelegram(initData, BT).user.phone, '+998901234567'));
-    let bad = null; try { core.authTelegram(initData.replace('Muslimbek', 'Hacker'), BT); } catch (e) { bad = e; }
-    check("Mini App: soxta imzo rad etiladi", () => assert(bad && bad.status === 401));
-  }
-
   let u = core.auth(token);
   u = { ...u, ...core.updateMe(u, { name: 'Muslimbek', birth_date: '2003-05-14', wake: '04:00', sleep: '22:30', onboarded: true }) };
   u = core.userById(u.id);
@@ -141,10 +129,7 @@ const at = (ds, hhmm) => T.instant(ds, T.toMin(hhmm), 5);
   sent.length = 0;
   fake = at(D, '21:30') + 10e3;
   await scheduler.tick(fake);
-  check('21:30 da ertangi reja eslatmasi + ilova tugmasi', () => {
-    const m = sent.find(x => x.text && x.text.includes('Ertangi kun rejasini'));
-    assert(m && m.reply_markup.inline_keyboard[0][0].web_app.url === `https://isloh.example.uz/?p=${encodeURIComponent('reja?d=' + D2)}`);
-  });
+  check('21:30 da ertangi reja eslatmasi (botdan)', () => assert(sent.find(x => x.method === 'sendMessage' && x.text.includes('Ertangi kun rejasini'))));
   fake = at(D, '22:25') + 10e3;
   await scheduler.tick(fake);
   const doc = sent.find(m => m.method === 'sendDocument');

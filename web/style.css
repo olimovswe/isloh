@@ -233,25 +233,10 @@ svg.chart text { fill: var(--text-3); font-size: 10px; }
 .steps b.n { width: 26px; height: 26px; border-radius: 50%; background: var(--inv); color: var(--inv-text); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex: none; }
 .dob { display: grid; grid-template-columns: 1fr 1.6fr 1.2fr; gap: 8px; }
 
-/* ---------- moslashuvchan */
+/* ---------- tor oyna (kompyuterda oyna kichraytirilganda) */
 @media (max-width: 980px) {
   .cols, .g4 { grid-template-columns: 1fr 1fr; }
   .cols { grid-template-columns: 1fr; }
   .home { grid-template-columns: 1fr; height: auto; padding-top: 10px; }
   .home .clockbox { order: -1; }
-}
-@media (max-width: 720px) {
-  #dock { left: 50%; top: auto; bottom: calc(10px + env(safe-area-inset-bottom)); transform: translateX(-50%); flex-direction: row; padding: 6px 8px; gap: 3px; border-radius: 26px; }
-  #dock a { width: 48px; height: 44px; }
-  #dock a::after { display: none; }
-  #view { inset: 0; padding: calc(16px + env(safe-area-inset-top)) 14px calc(96px + env(safe-area-inset-bottom)); }
-  .g2, .g3, .g4 { grid-template-columns: 1fr 1fr; }
-  .wheel .pr .n { font-size: 18px; } .wheel .pr .t { font-size: 16px; }
-  .tl .it .tm { width: 84px; font-size: 12.5px; }
-  .tl .gap { padding-left: 110px; }
-  .daycard { grid-template-columns: 56px minmax(0, 1fr); }
-  .daycard > :last-child { grid-column: 1 / -1; }
-  .ring { width: 52px; height: 52px; font-size: 14px; }
-  .modal-bg { align-items: flex-end; padding: 8px; }
-  .gate .card { padding: 24px 18px; }
 }

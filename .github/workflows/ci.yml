@@ -19,20 +19,14 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: Sintaksis tekshiruvi
         run: for f in server/*.js web/*.js; do node --check "$f"; done
-      - name: To'liq kun simulyatsiyasi (bot, namoz, reja, PDF)
+      - name: To'liq kun simulyatsiyasi (bot, namoz, reja, tahlil, PDF)
         run: npm test
-      - name: Server ishga tushishi va API
+      - name: Server ishga tushishi
         run: |
-          DEV_LOGIN=1 PORT=8099 DATA_DIR=/tmp/isloh node server/index.js > server.log 2>&1 &
+          PORT=8099 DATA_DIR=/tmp/isloh node server/index.js > server.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8099/api/config > /dev/null && break; sleep 1; done
-          code=$(curl -sf -X POST http://127.0.0.1:8099/api/auth/dev -H 'content-type: application/json' -d '{"name":"CI"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).code')
-          token=$(curl -sf -X POST http://127.0.0.1:8099/api/auth/verify -H 'content-type: application/json' -d "{\"code\":\"$code\"}" | node -pe 'JSON.parse(require("fs").readFileSync(0)).token')
-          curl -sf -X PUT http://127.0.0.1:8099/api/me -H "Authorization: Bearer $token" -H 'content-type: application/json' -d '{"birth_date":"2000-01-01","onboarded":true}' > /dev/null
-          curl -sf -H "Authorization: Bearer $token" http://127.0.0.1:8099/api/home > /dev/null
-          curl -sf -H "Authorization: Bearer $token" http://127.0.0.1:8099/api/profile > /dev/null
-          curl -sf -H "Authorization: Bearer $token" -o report.pdf "http://127.0.0.1:8099/api/report/$(date +%F).pdf"
-          head -c 8 report.pdf | grep -q '%PDF'
           curl -sf http://127.0.0.1:8099/ | grep -q Isloh
-          echo "Server va API ishlayapti"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8099/api/home)" = 401
+          echo "Server ishlayapti, kirishsiz so'rov rad etildi"
       - if: failure()
         run: cat server.log || true

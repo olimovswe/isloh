@@ -17,23 +17,11 @@ try {
 } catch (e) { /* .env bo'lmasa — standart qiymatlar */ }
 
 const PORT = +process.env.PORT || 8080;
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = '127.0.0.1'; // faqat shu kompyuterdan ochiladi
 const DATA = path.resolve(ROOT, process.env.DATA_DIR || 'data');
 const WEB = path.join(ROOT, 'web');
-/* Ochiq manzil: .env dagi PUBLIC_URL yoki Cloudflare tunnel yozgan fayl (data/public_url) */
-const URL_FILE = path.join(DATA, 'public_url');
-let urlCache = { mtime: 0, url: '' };
-function publicUrl() {
-  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL;
-  try {
-    const st = fs.statSync(URL_FILE);
-    if (st.mtimeMs !== urlCache.mtime) urlCache = { mtime: st.mtimeMs, url: fs.readFileSync(URL_FILE, 'utf8').trim() };
-    return urlCache.url;
-  } catch (e) { return ''; }
-}
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 const BOT_USERNAME = process.env.BOT_USERNAME || 'islohuzbot';
-const DEV_LOGIN = process.env.DEV_LOGIN === '1';
 const log = (...a) => console.log(new Date(Date.now() + 5 * 3600e3).toISOString().slice(11, 19), ...a);
 
 const T = require('./time');
@@ -55,7 +43,7 @@ const core = require('./core').create(db, bus);
 const analysis = require('./analysis').create(db, core);
 const { report } = require('./pdf');
 const feeds = require('./feeds').create(db, log);
-const bot = BOT_TOKEN ? require('./bot').create({ token: BOT_TOKEN, core, analysis, reportPdf: report, publicUrl, username: BOT_USERNAME, log }) : null;
+const bot = BOT_TOKEN ? require('./bot').create({ token: BOT_TOKEN, core, analysis, reportPdf: report, username: BOT_USERNAME, log }) : null;
 const scheduler = require('./scheduler').create({ db, core, bot, bus, log });
 const { ApiError } = core;
 
@@ -64,15 +52,8 @@ const routes = [];
 const route = (method, pattern, fn, open = false) => routes.push({ method, rx: new RegExp('^' + pattern + '$'), fn, open });
 const int = v => parseInt(v, 10);
 
-route('GET', '/api/config', () => ({ bot_username: BOT_USERNAME, bot_ready: !!bot, dev_login: DEV_LOGIN, public_url: publicUrl(), cities: Prayer.CITIES.map(c => ({ id: c.id, name: c.name })) }), true);
+route('GET', '/api/config', () => ({ bot_username: BOT_USERNAME, bot_ready: !!bot, cities: Prayer.CITIES.map(c => ({ id: c.id, name: c.name })) }), true);
 route('POST', '/api/auth/verify', ({ body, ip }) => core.verifyCode(body.code, ip), true);
-route('POST', '/api/auth/telegram', ({ body }) => core.authTelegram(body.init_data, BOT_TOKEN), true);
-route('POST', '/api/auth/dev', ({ body, ip }) => {
-  if (!DEV_LOGIN || !/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(ip)) throw new ApiError(404, 'Topilmadi');
-  const phone = '+' + String(body.phone || '998900000000').replace(/\D/g, '');
-  const u = core.registerContact({ tg_id: -Math.abs(int(phone.slice(-9)) || 1), phone, username: '', first_name: body.name || 'Sinov' });
-  return { code: core.newCode(u.id) };
-}, true);
 route('POST', '/api/auth/logout', ({ token }) => { core.logout(token); return { ok: true }; });
 route('GET', '/api/me', ({ user }) => core.publicUser(user));
 route('PUT', '/api/me', ({ user, body }) => core.updateMe(user, body));
@@ -138,9 +119,7 @@ function serveStatic(req, res, pathname) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
-  const peer = req.socket.remoteAddress || '';
-  // Cloudflare tunnel orqali kelgan so'rovda haqiqiy manzil sarlavhada bo'ladi
-  const ip = (/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(peer) && req.headers['cf-connecting-ip']) || peer;
+  const ip = req.socket.remoteAddress || '';
   if (!url.pathname.startsWith('/api/')) return serveStatic(req, res, url.pathname);
   try {
     // jonli hodisalar oqimi
@@ -195,23 +174,6 @@ server.listen(PORT, HOST, () => {
   log(`Isloh ishga tushdi: http://${HOST}:${PORT}  (ma'lumotlar: ${DATA})`);
   if (!bot) log("BOT_TOKEN berilmagan — Telegram bot o'chiq. .env faylini to'ldiring (README).");
   else bot.start();
-  // Ochiq manzil o'zgarsa (tunnel qayta ishga tushganda): bot menyusi yangilanadi va foydalanuvchilarga yangi havola yuboriladi
-  let lastUrl = null;
-  const watchUrl = async () => {
-    const u = publicUrl();
-    if (u === lastUrl) return;
-    const first = lastUrl === null;
-    lastUrl = u;
-    if (u) log(`Ochiq manzil: ${u}`);
-    if (!bot) return;
-    try { await bot.setMenu(db.all('SELECT tg_id FROM users WHERE tg_id > 0').map(r => r.tg_id)); } catch (e) { log('menyu', e.message); }
-    if (first || !u) return;
-    for (const user of db.all('SELECT * FROM users WHERE tg_id > 0 AND onboarded=1')) {
-      bot.send(user.tg_id, "📲 Isloh ilovasi yangi manzilda. Pastdagi tugma yoki chapdagi «Isloh» menyusi orqali oching.", [bot.appRow('📲 Ilovani ochish', '/#/home')]).catch(() => {});
-    }
-  };
-  watchUrl();
-  setInterval(watchUrl, 15e3);
   scheduler.start();
   feeds.crawl(true).then(n => log(`Podkastlar yangilandi: +${n}`)).catch(e => log('feed', e.message));
   setInterval(() => feeds.crawl().catch(() => {}), 10 * 60e3);

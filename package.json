@@ -1,7 +1,7 @@
 {
   "name": "isloh",
-  "version": "2.0.0",
-  "description": "Isloh — maqsad sari ongli hayot: namoz, kun rejasi, tahlil va ilm",
+  "version": "2.1.0",
+  "description": "Isloh — maqsad sari ongli hayot: namoz, kun rejasi va tahlil. Faqat shu kompyuterda, Telegram bot bilan.",
   "author": { "name": "Muslimbek Olimov", "email": "olimovswe@gmail.com" },
   "homepage": "https://github.com/olimovswe/isloh",
   "repository": "github:olimovswe/isloh",
@@ -9,15 +9,6 @@
   "engines": { "node": ">=22.13" },
   "scripts": {
     "start": "node server/index.js",
-    "dev": "DEV_LOGIN=1 node --watch server/index.js",
     "test": "node server/selftest.js"
-  },
-  "devDependencies": {
-    "@capacitor/cli": "^8.5.3"
-  },
-  "dependencies": {
-    "@capacitor/android": "^8.5.3",
-    "@capacitor/core": "^8.5.3",
-    "@capacitor/local-notifications": "^8.3.1"
   }
 }

@@ -5,7 +5,7 @@ const T = require('./time');
 
 const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
-function create({ token, core, analysis, reportPdf, publicUrl, username = 'islohuzbot', log = console.log, transport }) {
+function create({ token, core, analysis, reportPdf, username = 'islohuzbot', log = console.log, transport }) {
   const API = `https://api.telegram.org/bot${token}/`;
   let running = false, offset = 0;
 
@@ -28,20 +28,10 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
     if (!j.ok) throw new Error(`sendDocument: ${j.description}`);
     return j.result;
   }
-  const base = () => String((typeof publicUrl === 'function' ? publicUrl() : publicUrl) || '').replace(/\/$/, '');
-  const httpsApp = () => /^https:\/\//.test(base()) && !/localhost|127\.0\.0\.1/.test(base());
-  /* Ilova manzili: "/#/reja?d=..." → "https://.../?p=reja%3Fd%3D..." (Telegram o'z ma'lumotini # dan keyin qo'shadi) */
-  const appUrl = (path = '/') => `${base()}/?p=${encodeURIComponent(path.replace(/^\/?#?\/?/, '') || 'home')}`;
-  /* Ilovani ochish tugmasi — Telegram ichida ochiladi (Mini App). Faqat https manzilda ishlaydi (Telegram talabi). */
-  function appRow(text, path = '/') {
-    return httpsApp() ? [{ text, web_app: { url: appUrl(path) } }] : null;
-  }
-  /* Botning pastki chapdagi menyu tugmasi — ilovani ochadi */
-  async function setMenu(chatIds = []) {
-    const menu_button = httpsApp() ? { type: 'web_app', text: 'Isloh', web_app: { url: appUrl('home') } } : { type: 'default' };
-    await call('setChatMenuButton', { menu_button });
-    // har bir chatga alohida ham qo'yamiz — umumiy sozlama Telegram'da kechikib yangilanadi
-    for (const id of chatIds) await call('setChatMenuButton', { chat_id: id, menu_button }).catch(() => {});
+  /* Botning menyu tugmasi oddiy holatda (ilova faqat kompyuterda ochiladi) */
+  async function resetMenu(chatIds = []) {
+    await call('setChatMenuButton', { menu_button: { type: 'default' } });
+    for (const id of chatIds) await call('setChatMenuButton', { chat_id: id, menu_button: { type: 'default' } }).catch(() => {});
   }
   const kb = rows => ({ inline_keyboard: rows.filter(Boolean) });
 
@@ -57,8 +47,8 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
   /* ------------------------------------------------------------ ro'yxatdan o'tish */
   async function codeMessage(chatId, u, msgToEdit) {
     const code = core.newCode(u.id);
-    const text = `🔑 <b>Ilovaga kirish kodi:</b>\n\n<code>${code}</code>\n\nKodni Isloh ilovasidagi «Kirish» oynasiga kiriting.\nKod <b>3 daqiqa</b> amal qiladi.\n\n<i>Kodni hech kimga bermang.</i>`;
-    const rows = [[{ text: '🔄 Yangi kod', callback_data: 'code' }], appRow('📲 Ilovani ochish', '/#/kirish')];
+    const text = `🔑 <b>Ilovaga kirish kodi:</b>\n\n<code>${code}</code>\n\nKodni kompyuterdagi Isloh ilovasining «Kirish» oynasiga kiriting.\nKod <b>3 daqiqa</b> amal qiladi.\n\n<i>Kodni hech kimga bermang.</i>`;
+    const rows = [[{ text: '🔄 Yangi kod', callback_data: 'code' }]];
     return msgToEdit ? edit(msgToEdit, text, rows) : send(chatId, text, rows);
   }
   async function onStart(msg) {
@@ -80,7 +70,6 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
     }
     const u = core.registerContact({ tg_id: msg.from.id, phone: c.phone_number, username: msg.from.username, first_name: msg.from.first_name, last_name: msg.from.last_name });
     await call('sendMessage', { chat_id: msg.chat.id, parse_mode: 'HTML', text: `✅ Raqamingiz tasdiqlandi: <b>${esc(u.phone)}</b>`, reply_markup: { remove_keyboard: true } });
-    setMenu([msg.chat.id]).catch(() => {});
     return codeMessage(msg.chat.id, u);
   }
 
@@ -99,7 +88,7 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
     if (cmd === 'start') return onStart(msg);
     if (!u) return onStart(msg);
     if (cmd === 'kod' || cmd === 'login') return codeMessage(msg.chat.id, u);
-    if (cmd === 'bugun') return send(msg.chat.id, await todayText(u), [appRow('📲 Ilovada ochish', '/#/reja')]);
+    if (cmd === 'bugun') return send(msg.chat.id, await todayText(u));
     if (cmd === 'hisobot') return sendDailyPdf(u, core.activeDate(u));
     return send(msg.chat.id, "Buyruqlar:\n/bugun — bugungi reja\n/hisobot — bugungi tahlil (PDF)\n/kod — ilovaga kirish kodi");
   }
@@ -177,7 +166,7 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
     const buf = reportPdf(u, a, { date: tm, items: plan.items });
     const caption = `📊 <b>${a.title}</b>\nKun balli: <b>${a.score === null ? '—' : Math.round(a.score * 100) + '%'}</b> (${a.level_name})\n` +
       `Ishlar: ${a.stats.done}/${a.stats.planned} · Namoz: ${a.stats.prayers_ok}/5${a.stats.late_avg ? ` · Kechikish: ${a.stats.late_avg} daq` : ''}`;
-    return sendDocument(u.tg_id, buf, `isloh-${ds}.pdf`, caption, kb([appRow('📲 Ilovada ko\'rish', `/#/tarix?d=${ds}`)]));
+    return sendDocument(u.tg_id, buf, `isloh-${ds}.pdf`, caption);
   }
 
   async function poll() {
@@ -186,7 +175,7 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
     for (let i = 0; running; i++) {
       try {
         await call('setMyCommands', { commands: [{ command: 'bugun', description: 'Bugungi reja' }, { command: 'hisobot', description: 'Bugungi tahlil (PDF)' }, { command: 'kod', description: 'Ilovaga kirish kodi' }] });
-        await setMenu(core.registeredChats ? core.registeredChats() : []).catch(() => {});
+        await resetMenu(core.registeredChats()).catch(() => {});
         const me = await call('getMe', {});
         log(`Telegram bot ulandi: @${me.username}`);
         break;
@@ -206,7 +195,7 @@ function create({ token, core, analysis, reportPdf, publicUrl, username = 'isloh
     }
   }
 
-  return { start: () => { if (!running) poll(); }, stop: () => { running = false; }, handle, send, sendDailyPdf, appRow, appUrl, setMenu, kb };
+  return { start: () => { if (!running) poll(); }, stop: () => { running = false; }, handle, send, sendDailyPdf, kb };
 }
 
 module.exports = { create, esc };
